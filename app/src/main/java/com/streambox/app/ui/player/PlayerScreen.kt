@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalView
@@ -67,6 +68,8 @@ fun PlayerScreen(
     var centerLongPressFired by remember { mutableStateOf(false) }
     var channelListVisible by remember { mutableStateOf(false) }
     var panelInteraction by remember { mutableIntStateOf(0) }
+    var panelHasFocus by remember { mutableStateOf(false) }
+    val panelTopFocus = remember { FocusRequester() }
     val listChannels = viewModel.listChannels.collectAsLazyPagingItems()
     val panelGroups by viewModel.panelGroups.collectAsStateWithLifecycle()
     val panelGroupType by viewModel.panelGroupType.collectAsStateWithLifecycle()
@@ -131,9 +134,24 @@ fun PlayerScreen(
                 val native = event.nativeKeyEvent
                 val code = native.keyCode
                 // While the channel panel is open, all keys go to the panel;
-                // observing them here just resets its auto-hide timer.
+                // observing them here resets its auto-hide timer. If focus
+                // ever fails to land inside the panel (lazy-list races), the
+                // first D-pad press pulls it in instead of going dead.
                 if (channelListVisible) {
-                    if (native.action == AndroidKeyEvent.ACTION_DOWN) panelInteraction++
+                    if (native.action == AndroidKeyEvent.ACTION_DOWN) {
+                        panelInteraction++
+                        val isDpad = code in intArrayOf(
+                            AndroidKeyEvent.KEYCODE_DPAD_UP,
+                            AndroidKeyEvent.KEYCODE_DPAD_DOWN,
+                            AndroidKeyEvent.KEYCODE_DPAD_LEFT,
+                            AndroidKeyEvent.KEYCODE_DPAD_RIGHT,
+                            AndroidKeyEvent.KEYCODE_DPAD_CENTER,
+                        )
+                        if (isDpad && !panelHasFocus) {
+                            runCatching { panelTopFocus.requestFocus() }
+                            return@onPreviewKeyEvent true
+                        }
+                    }
                     return@onPreviewKeyEvent false
                 }
                 when (native.action) {
@@ -210,6 +228,11 @@ fun PlayerScreen(
             factory = { context ->
                 PlayerView(context).apply {
                     useController = false
+                    // Never let the video surface take key focus away from
+                    // the Compose UI on TV remotes.
+                    isFocusable = false
+                    isFocusableInTouchMode = false
+                    descendantFocusability = android.view.ViewGroup.FOCUS_BLOCK_DESCENDANTS
                     player = viewModel.playerManager.player
                 }
             },
@@ -277,9 +300,12 @@ fun PlayerScreen(
             visible = channelListVisible,
             enter = slideInHorizontally { -it },
             exit = slideOutHorizontally { -it },
-            modifier = Modifier.align(Alignment.CenterStart),
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .onFocusChanged { panelHasFocus = it.hasFocus },
         ) {
             ChannelListPanel(
+                topFocus = panelTopFocus,
                 groups = panelGroups,
                 groupType = panelGroupType,
                 selectedGroup = panelSelectedGroup,

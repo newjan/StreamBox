@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -60,19 +61,23 @@ fun ChannelListPanel(
     onGroupTypeChange: (HomeGroupBy) -> Unit,
     onGroupSelect: (String?) -> Unit,
     onSelect: (String) -> Unit,
+    topFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
-    val groupFocus = remember { FocusRequester() }
+    val selectedFocus = remember { FocusRequester() }
     val groupListState = rememberLazyListState()
 
-    // Open on the selected group: scroll to it and take focus.
+    // Open on the selected group: scroll to it and take focus. The pinned
+    // Favorites row (always composed, holds [topFocus]) is the fallback so
+    // D-pad focus reliably lands inside the panel.
     LaunchedEffect(groups.isNotEmpty()) {
-        if (groups.isNotEmpty()) {
-            val index = selectedGroup?.let { sel -> groups.indexOfFirst { it.name == sel } } ?: -1
-            // +2 for the pinned Favorites and "All channels" rows.
-            if (index >= 0) groupListState.scrollToItem(index + 2)
-            runCatching { groupFocus.requestFocus() }
-        }
+        val index = selectedGroup?.let { sel -> groups.indexOfFirst { it.name == sel } } ?: -1
+        // +2 for the pinned Favorites and "All channels" rows.
+        if (index >= 0) runCatching { groupListState.scrollToItem(index + 2) }
+        withFrameNanos { }
+        withFrameNanos { }
+        runCatching { selectedFocus.requestFocus() }
+            .onFailure { runCatching { topFocus.requestFocus() } }
     }
 
     Row(
@@ -109,10 +114,12 @@ fun ChannelListPanel(
                         count = favoritesCount.takeIf { it > 0 },
                         isSelected = selectedGroup == PlayerViewModel.FAVORITES_GROUP,
                         onClick = { onGroupSelect(PlayerViewModel.FAVORITES_GROUP) },
-                        modifier = if (selectedGroup == PlayerViewModel.FAVORITES_GROUP) {
-                            Modifier.focusRequester(groupFocus)
-                        } else {
-                            Modifier
+                        modifier = Modifier.focusRequester(topFocus).let {
+                            if (selectedGroup == PlayerViewModel.FAVORITES_GROUP) {
+                                it.focusRequester(selectedFocus)
+                            } else {
+                                it
+                            }
                         },
                     )
                 }
@@ -123,7 +130,7 @@ fun ChannelListPanel(
                         isSelected = selectedGroup == null,
                         onClick = { onGroupSelect(null) },
                         modifier = if (selectedGroup == null) {
-                            Modifier.focusRequester(groupFocus)
+                            Modifier.focusRequester(selectedFocus)
                         } else {
                             Modifier
                         },
@@ -141,7 +148,7 @@ fun ChannelListPanel(
                         isSelected = selectedGroup == group.name,
                         onClick = { onGroupSelect(group.name) },
                         modifier = if (selectedGroup == group.name) {
-                            Modifier.focusRequester(groupFocus)
+                            Modifier.focusRequester(selectedFocus)
                         } else {
                             Modifier
                         },
