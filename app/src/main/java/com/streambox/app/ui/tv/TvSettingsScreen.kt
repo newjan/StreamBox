@@ -40,6 +40,7 @@ fun TvSettingsScreen(
     val epgEnabled by viewModel.epgEnabled.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val hideDead by viewModel.hideDead.collectAsStateWithLifecycle()
+    val trustAllCerts by viewModel.trustAllCerts.collectAsStateWithLifecycle()
     val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
     val workingCount by viewModel.workingCount.collectAsStateWithLifecycle()
 
@@ -155,6 +156,23 @@ fun TvSettingsScreen(
                 else -> "No scan yet — playing a channel also records its status"
             },
             style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        Text(
+            "Connection",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        TvPill(
+            label = if (trustAllCerts) "Trust all certificates: On" else "Trust all certificates: Off",
+            onClick = { viewModel.setTrustAllCerts(!trustAllCerts) },
+        )
+        Text(
+            text = "Only enable if playlist downloads fail with a certificate error " +
+                "and the box's date & time are correct. Disables HTTPS certificate " +
+                "checks for this app.",
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 

@@ -16,6 +16,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.security.cert.CertificateException
+import java.text.DateFormat
+import java.util.Calendar
 import javax.inject.Inject
 import javax.inject.Singleton
 import javax.net.ssl.SSLException
@@ -70,11 +72,19 @@ class PlaylistRepository @Inject constructor(
     private fun userMessage(e: IOException): String {
         val isCertError = generateSequence<Throwable>(e) { it.cause }
             .any { it is SSLException || it is CertificateException }
-        return if (isCertError) {
-            "Secure connection failed — check the device's date & time. " +
-                "If they are correct, the device's certificates are outdated."
+        if (!isCertError) return e.message ?: "Network error"
+
+        val now = Calendar.getInstance()
+        // Cert validation is time-based; a box with a dead clock battery
+        // resets to the past and fails every certificate on the planet.
+        return if (now.get(Calendar.YEAR) < 2026) {
+            val date = DateFormat.getDateInstance().format(now.time)
+            "Secure connection failed — this device's clock is set to $date. " +
+                "Fix the date & time in the box settings."
         } else {
-            e.message ?: "Network error"
+            "Secure connection failed — this device cannot validate the " +
+                "server's certificate. As a last resort, enable " +
+                "\"Trust all certificates\" in Settings."
         }
     }
 

@@ -40,6 +40,7 @@ class SettingsRepository @Inject constructor(
         val HOME_FAVORITES_ONLY = booleanPreferencesKey("home_favorites_only")
         val HIDE_DEAD = booleanPreferencesKey("hide_dead")
         val GROUP_VIEW_MODE = stringPreferencesKey("group_view_mode")
+        val TRUST_ALL_CERTS = booleanPreferencesKey("trust_all_certs")
     }
 
     val playlistUrl: Flow<String> =
@@ -85,6 +86,16 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setGroupViewMode(value: ViewMode) =
         dataStore.edit { it[Keys.GROUP_VIEW_MODE] = value.name }
+
+    /**
+     * Last-resort escape hatch for old boxes whose TLS can't validate modern
+     * chains even against the bundled roots. Disables certificate checks.
+     */
+    val trustAllCerts: Flow<Boolean> =
+        dataStore.data.map { it[Keys.TRUST_ALL_CERTS] ?: false }
+
+    suspend fun setTrustAllCerts(value: Boolean) =
+        dataStore.edit { it[Keys.TRUST_ALL_CERTS] = value }
 
     suspend fun setPlaylistUrl(url: String) =
         dataStore.edit { it[Keys.PLAYLIST_URL] = url.trim() }

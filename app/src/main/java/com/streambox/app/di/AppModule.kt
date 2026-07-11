@@ -13,7 +13,7 @@ import com.streambox.app.data.db.RecentDao
 import com.streambox.app.data.db.StreamBoxDatabase
 import com.streambox.app.data.epg.XmltvParser
 import com.streambox.app.data.m3u.M3uParser
-import com.streambox.app.data.net.SslCompat
+import com.streambox.app.data.net.TlsCompat
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -51,7 +51,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(@ApplicationContext context: Context): OkHttpClient =
+    fun provideOkHttpClient(tlsCompat: TlsCompat): OkHttpClient =
         OkHttpClient.Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
@@ -64,7 +64,7 @@ object AppModule {
                         .build()
                 )
             }
-            .let { SslCompat.apply(it, context) }
+            .let(tlsCompat::apply)
             .build()
 
     @Provides

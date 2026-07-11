@@ -46,6 +46,7 @@ fun PhoneSettingsScreen(
     val epgEnabled by viewModel.epgEnabled.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val hideDead by viewModel.hideDead.collectAsStateWithLifecycle()
+    val trustAllCerts by viewModel.trustAllCerts.collectAsStateWithLifecycle()
     val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
     val workingCount by viewModel.workingCount.collectAsStateWithLifecycle()
 
@@ -185,6 +186,26 @@ fun PhoneSettingsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+            Text("Connection", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Trust all certificates")
+                    Text(
+                        "Only enable if playlist downloads fail with a certificate " +
+                            "error on an old device whose date & time are correct. " +
+                            "Disables HTTPS certificate checks for this app.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = trustAllCerts, onCheckedChange = viewModel::setTrustAllCerts)
+            }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 

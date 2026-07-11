@@ -42,6 +42,13 @@ class SettingsViewModel @Inject constructor(
     val hideDead: StateFlow<Boolean> = settings.hideDead
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    val trustAllCerts: StateFlow<Boolean> = settings.trustAllCerts
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    fun setTrustAllCerts(value: Boolean) {
+        viewModelScope.launch { settings.setTrustAllCerts(value) }
+    }
+
     /** Live progress of the stream health scan (app-scoped, survives leaving). */
     val scanProgress: StateFlow<ScanProgress> = healthChecker.progress
 

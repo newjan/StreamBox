@@ -10,6 +10,10 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.HiltAndroidApp
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 @HiltAndroidApp
@@ -19,6 +23,23 @@ class StreamBoxApplication : Application(), ImageLoaderFactory {
     @InstallIn(SingletonComponent::class)
     interface ImageLoaderEntryPoint {
         fun okHttpClient(): OkHttpClient
+    }
+
+    @javax.inject.Inject
+    lateinit var tlsCompat: com.streambox.app.data.net.TlsCompat
+
+    @javax.inject.Inject
+    lateinit var settings: com.streambox.app.data.settings.SettingsRepository
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    override fun onCreate() {
+        super.onCreate()
+        // Keep the trust-all escape hatch in sync with the setting; volatile
+        // flag applies to the next connection, no restart needed.
+        appScope.launch {
+            settings.trustAllCerts.collect { tlsCompat.trustAll = it }
+        }
     }
 
     /**
