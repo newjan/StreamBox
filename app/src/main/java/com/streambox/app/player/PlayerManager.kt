@@ -40,6 +40,10 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
 
     private var currentUrl: String? = null
 
+    /** Configurable via Settings; updated by the ViewModel. */
+    @Volatile
+    var retryWindowMs: Long = DEFAULT_RETRY_WINDOW_MS
+
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var retryJob: Job? = null
     private var firstErrorAt: Long? = null
@@ -72,7 +76,7 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
             // silently re-preparing for RETRY_WINDOW_MS before giving up.
             val now = System.currentTimeMillis()
             val windowStart = firstErrorAt ?: now.also { firstErrorAt = it }
-            if (now - windowStart < RETRY_WINDOW_MS && currentUrl != null) {
+            if (now - windowStart < retryWindowMs && currentUrl != null) {
                 _state.value = PlayerUiState.Buffering
                 retryJob?.cancel()
                 retryJob = scope.launch {
@@ -119,7 +123,7 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
 
     private companion object {
         /** Keep auto-retrying a failed stream this long before surfacing the error. */
-        const val RETRY_WINDOW_MS = 30_000L
+        const val DEFAULT_RETRY_WINDOW_MS = 15_000L
         /** Pause between automatic re-prepare attempts. */
         const val RETRY_DELAY_MS = 3_000L
     }

@@ -4,6 +4,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -42,6 +43,7 @@ class SettingsRepository @Inject constructor(
         val GROUP_VIEW_MODE = stringPreferencesKey("group_view_mode")
         val TRUST_ALL_CERTS = booleanPreferencesKey("trust_all_certs")
         val PANEL_GROUP_BY = stringPreferencesKey("panel_group_by")
+        val RETRY_WINDOW_S = intPreferencesKey("retry_window_s")
     }
 
     val playlistUrl: Flow<String> =
@@ -106,6 +108,18 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setPanelGroupBy(value: HomeGroupBy) =
         dataStore.edit { it[Keys.PANEL_GROUP_BY] = value.name }
+
+    /** How long the player silently retries a failed stream (seconds). */
+    val retryWindowSeconds: Flow<Int> = dataStore.data.map {
+        (it[Keys.RETRY_WINDOW_S] ?: DEFAULT_RETRY_WINDOW_S).coerceIn(5, 60)
+    }
+
+    suspend fun setRetryWindowSeconds(value: Int) =
+        dataStore.edit { it[Keys.RETRY_WINDOW_S] = value.coerceIn(5, 60) }
+
+    companion object {
+        const val DEFAULT_RETRY_WINDOW_S = 15
+    }
 
     suspend fun setPlaylistUrl(url: String) =
         dataStore.edit { it[Keys.PLAYLIST_URL] = url.trim() }

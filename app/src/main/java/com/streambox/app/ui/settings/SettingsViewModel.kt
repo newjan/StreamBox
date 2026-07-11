@@ -49,6 +49,17 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settings.setTrustAllCerts(value) }
     }
 
+    val retryWindowSeconds: StateFlow<Int> = settings.retryWindowSeconds
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5000),
+            SettingsRepository.DEFAULT_RETRY_WINDOW_S,
+        )
+
+    fun setRetryWindowSeconds(value: Int) {
+        viewModelScope.launch { settings.setRetryWindowSeconds(value) }
+    }
+
     /** Live progress of the stream health scan (app-scoped, survives leaving). */
     val scanProgress: StateFlow<ScanProgress> = healthChecker.progress
 

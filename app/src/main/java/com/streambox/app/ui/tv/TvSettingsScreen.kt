@@ -41,6 +41,7 @@ fun TvSettingsScreen(
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val hideDead by viewModel.hideDead.collectAsStateWithLifecycle()
     val trustAllCerts by viewModel.trustAllCerts.collectAsStateWithLifecycle()
+    val retrySeconds by viewModel.retryWindowSeconds.collectAsStateWithLifecycle()
     val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
     val workingCount by viewModel.workingCount.collectAsStateWithLifecycle()
 
@@ -120,6 +121,26 @@ fun TvSettingsScreen(
             )
             null -> Unit
         }
+
+        Text(
+            "Playback",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        TvPill(
+            label = "Stream retry: ${retrySeconds}s (press to change)",
+            onClick = {
+                val steps = listOf(5, 10, 15, 20, 30, 45, 60)
+                val next = steps[(steps.indexOfFirst { it >= retrySeconds }
+                    .takeIf { it >= 0 } ?: 0).let { (it + 1) % steps.size }]
+                viewModel.setRetryWindowSeconds(next)
+            },
+        )
+        Text(
+            "How long a failed stream keeps retrying before showing an error.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Text(
             "Options",

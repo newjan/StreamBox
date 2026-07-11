@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -47,6 +48,7 @@ fun PhoneSettingsScreen(
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val hideDead by viewModel.hideDead.collectAsStateWithLifecycle()
     val trustAllCerts by viewModel.trustAllCerts.collectAsStateWithLifecycle()
+    val retrySeconds by viewModel.retryWindowSeconds.collectAsStateWithLifecycle()
     val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
     val workingCount by viewModel.workingCount.collectAsStateWithLifecycle()
 
@@ -140,6 +142,26 @@ fun PhoneSettingsScreen(
                 }
                 Switch(checked = epgEnabled, onCheckedChange = viewModel::setEpgEnabled)
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+            Text("Playback", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Retry failed streams for ${retrySeconds}s before giving up",
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Slider(
+                value = retrySeconds.toFloat(),
+                onValueChange = { viewModel.setRetryWindowSeconds(it.toInt()) },
+                valueRange = 5f..60f,
+                steps = 10,
+            )
+            Text(
+                "Flaky streams often recover within seconds; longer values ride out " +
+                    "bigger hiccups but keep dead channels spinning longer.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 

@@ -174,6 +174,12 @@ class PlayerViewModel @Inject constructor(
                 panelGroupType.value = settings.panelGroupBy.first()
             }
         }
+        // Keep the player's retry window in sync with the setting.
+        viewModelScope.launch {
+            settings.retryWindowSeconds.collect { seconds ->
+                playerManager.retryWindowMs = seconds * 1000L
+            }
+        }
     }
 
     val panelGroups: StateFlow<List<GroupCount>> = panelGroupType
