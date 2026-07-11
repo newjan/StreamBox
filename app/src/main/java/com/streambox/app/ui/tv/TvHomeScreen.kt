@@ -46,7 +46,8 @@ fun TvHomeScreen(
     onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val rows by viewModel.rows.collectAsStateWithLifecycle()
+    val specialRows by viewModel.specialRows.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val channelCount by viewModel.channelCount.collectAsStateWithLifecycle()
     val nowTitles by viewModel.nowTitles.collectAsStateWithLifecycle()
@@ -84,7 +85,7 @@ fun TvHomeScreen(
             )
         }
 
-        if (rows.isEmpty()) {
+        if (specialRows.isEmpty() && categories.isEmpty()) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(
@@ -108,8 +109,33 @@ fun TvHomeScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                items(rows, key = { it.title }) { row ->
-                    TvHomeRow(row = row, nowTitles = nowTitles, onPlayChannel = onPlayChannel)
+                items(specialRows, key = { it.title }) { row ->
+                    TvHomeRow(
+                        title = row.title,
+                        channels = row.channels,
+                        nowTitles = nowTitles,
+                        onPlayChannel = onPlayChannel,
+                    )
+                }
+                // Category rows query their channels only while on screen so
+                // grouped-by-country playlists (100+ rows) all appear.
+                items(categories, key = { it }) { category ->
+                    val channels by remember(category) { viewModel.channelsFor(category) }
+                        .collectAsStateWithLifecycle(initialValue = emptyList())
+                    if (channels.isNotEmpty()) {
+                        TvHomeRow(
+                            title = category,
+                            channels = channels,
+                            nowTitles = nowTitles,
+                            onPlayChannel = onPlayChannel,
+                        )
+                    } else {
+                        Text(
+                            text = category,
+                            style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(horizontal = 48.dp, vertical = 8.dp),
+                        )
+                    }
                 }
             }
         }
@@ -119,13 +145,14 @@ fun TvHomeScreen(
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 private fun TvHomeRow(
-    row: HomeRow,
+    title: String,
+    channels: List<com.streambox.app.data.db.ChannelWithState>,
     nowTitles: Map<String, String>,
     onPlayChannel: (String, ZapContext) -> Unit,
 ) {
     Column {
         Text(
-            text = row.title,
+            text = title,
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(horizontal = 48.dp, vertical = 8.dp),
         )
@@ -134,12 +161,12 @@ private fun TvHomeRow(
             contentPadding = PaddingValues(horizontal = 48.dp, vertical = 8.dp),
             modifier = Modifier.focusRestorer(),
         ) {
-            items(row.channels, key = { it.channel.key }) { channel ->
+            items(channels, key = { it.channel.key }) { channel ->
                 TvChannelCard(
                     channel = channel,
                     subtitle = channel.channel.tvgId?.let(nowTitles::get),
                     onClick = {
-                        onPlayChannel(channel.channel.key, rowZapContext(row.title))
+                        onPlayChannel(channel.channel.key, rowZapContext(title))
                     },
                 )
             }

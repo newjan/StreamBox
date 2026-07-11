@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -45,7 +46,8 @@ fun PhoneHomeScreen(
     onOpenSettings: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
-    val rows by viewModel.rows.collectAsStateWithLifecycle()
+    val specialRows by viewModel.specialRows.collectAsStateWithLifecycle()
+    val categories by viewModel.categories.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val channelCount by viewModel.channelCount.collectAsStateWithLifecycle()
     val nowTitles by viewModel.nowTitles.collectAsStateWithLifecycle()
@@ -71,7 +73,7 @@ fun PhoneHomeScreen(
         Column(modifier = Modifier.padding(padding)) {
             ImportProgressBanner(importProgress)
 
-            if (rows.isEmpty()) {
+            if (specialRows.isEmpty() && categories.isEmpty()) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize(),
@@ -94,28 +96,57 @@ fun PhoneHomeScreen(
                 }
             } else {
                 LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                    items(rows, key = { it.title }) { row ->
-                        RowHeader(row.title)
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            items(row.channels, key = { it.channel.key }) { channel ->
-                                ChannelCard(
-                                    channel = channel,
-                                    subtitle = channel.channel.tvgId?.let(nowTitles::get),
-                                    onClick = {
-                                        onPlayChannel(
-                                            channel.channel.key,
-                                            rowZapContext(row.title),
-                                        )
-                                    },
-                                )
-                            }
+                    items(specialRows, key = { it.title }) { row ->
+                        PhoneChannelRow(
+                            title = row.title,
+                            channels = row.channels,
+                            nowTitles = nowTitles,
+                            onPlayChannel = onPlayChannel,
+                        )
+                    }
+                    // Category rows load their channels only while visible, so
+                    // playlists with 100+ groups all get a row without keeping
+                    // 100+ live queries around.
+                    items(categories, key = { it }) { category ->
+                        val channels by remember(category) { viewModel.channelsFor(category) }
+                            .collectAsStateWithLifecycle(initialValue = emptyList())
+                        if (channels.isNotEmpty()) {
+                            PhoneChannelRow(
+                                title = category,
+                                channels = channels,
+                                nowTitles = nowTitles,
+                                onPlayChannel = onPlayChannel,
+                            )
+                        } else {
+                            RowHeader(category)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PhoneChannelRow(
+    title: String,
+    channels: List<com.streambox.app.data.db.ChannelWithState>,
+    nowTitles: Map<String, String>,
+    onPlayChannel: (String, ZapContext) -> Unit,
+) {
+    RowHeader(title)
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(channels, key = { it.channel.key }) { channel ->
+            ChannelCard(
+                channel = channel,
+                subtitle = channel.channel.tvgId?.let(nowTitles::get),
+                onClick = {
+                    onPlayChannel(channel.channel.key, rowZapContext(title))
+                },
+            )
         }
     }
 }
