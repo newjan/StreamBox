@@ -15,8 +15,10 @@ import kotlinx.coroutines.flow.flowOn
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
+import java.security.cert.CertificateException
 import javax.inject.Inject
 import javax.inject.Singleton
+import javax.net.ssl.SSLException
 
 @Singleton
 class PlaylistRepository @Inject constructor(
@@ -59,11 +61,22 @@ class PlaylistRepository @Inject constructor(
             }
         } catch (e: IOException) {
             runCatching { channelDao.deleteGeneration(generation) }
-            emit(ImportProgress.Failed(e.message ?: "Network error"))
+            emit(ImportProgress.Failed(userMessage(e)))
         } catch (e: IllegalArgumentException) {
             emit(ImportProgress.Failed("Invalid playlist URL"))
         }
     }.flowOn(Dispatchers.IO)
+
+    private fun userMessage(e: IOException): String {
+        val isCertError = generateSequence<Throwable>(e) { it.cause }
+            .any { it is SSLException || it is CertificateException }
+        return if (isCertError) {
+            "Secure connection failed — check the device's date & time. " +
+                "If they are correct, the device's certificates are outdated."
+        } else {
+            e.message ?: "Network error"
+        }
+    }
 
     suspend fun channelCount(): Int = channelDao.count()
 
