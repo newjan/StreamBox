@@ -5,8 +5,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,7 @@ import androidx.media3.ui.PlayerView
 import com.streambox.app.player.PlayerUiState
 import kotlinx.coroutines.delay
 
+@OptIn(ExperimentalFoundationApi::class)
 @UnstableApi
 @Composable
 fun PlayerScreen(
@@ -224,13 +226,16 @@ fun PlayerScreen(
                 }
             }
             .focusable()
-            .clickable(
+            .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-            ) {
-                overlayVisible = !overlayVisible
-                overlayInteraction++
-            },
+                onClick = {
+                    overlayVisible = !overlayVisible
+                    overlayInteraction++
+                },
+                // Touch counterpart of long-pressing OK on the remote.
+                onLongClick = { addToListVisible = true },
+            ),
     ) {
         AndroidView(
             factory = { context ->
