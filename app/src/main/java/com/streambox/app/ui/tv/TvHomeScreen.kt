@@ -136,12 +136,12 @@ fun TvHomeScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                items(specialRows, key = { it.title }) { row ->
+                items(specialRows, key = { it.key }) { row ->
                     TvHomeRow(
                         title = row.title,
                         channels = row.channels,
                         nowTitles = nowTitles,
-                        zapContext = { viewModel.zapContextFor(row.title) },
+                        zapContext = { row.zap },
                         onPlayChannel = onPlayChannel,
                     )
                 }

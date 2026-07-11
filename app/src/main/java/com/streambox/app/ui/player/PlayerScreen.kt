@@ -75,6 +75,9 @@ fun PlayerScreen(
     val panelGroupType by viewModel.panelGroupType.collectAsStateWithLifecycle()
     val panelSelectedGroup by viewModel.panelSelectedGroup.collectAsStateWithLifecycle()
     val favoritesCount by viewModel.favoritesCount.collectAsStateWithLifecycle()
+    val customLists by viewModel.customCategories.collectAsStateWithLifecycle()
+    val currentChannelListIds by viewModel.currentChannelListIds.collectAsStateWithLifecycle()
+    var addToListVisible by remember { mutableStateOf(false) }
 
     val rootFocus = remember { FocusRequester() }
 
@@ -293,6 +296,10 @@ fun PlayerScreen(
                     overlayVisible = false
                     channelListVisible = true
                 },
+                onOpenAddToList = {
+                    overlayVisible = false
+                    addToListVisible = true
+                },
             )
         }
 
@@ -310,6 +317,7 @@ fun PlayerScreen(
                 groupType = panelGroupType,
                 selectedGroup = panelSelectedGroup,
                 favoritesCount = favoritesCount,
+                customLists = customLists,
                 channels = listChannels,
                 currentKey = channel?.channel?.key,
                 nowPlaying = nowPlaying,
@@ -322,6 +330,21 @@ fun PlayerScreen(
                 onSelect = {
                     viewModel.playByKey(it); panelInteraction++
                 },
+                onNewList = {
+                    channelListVisible = false
+                    addToListVisible = true
+                },
+            )
+        }
+
+        if (addToListVisible) {
+            AddToListDialog(
+                channelName = channel?.channel?.name ?: "",
+                lists = customLists,
+                memberIds = currentChannelListIds,
+                onToggle = viewModel::toggleCurrentChannelInList,
+                onCreate = viewModel::createListWithCurrentChannel,
+                onDismiss = { addToListVisible = false },
             )
         }
     }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -44,6 +45,7 @@ fun PlayerOverlay(
     onZapNext: () -> Unit,
     onCycleResize: () -> Unit,
     onOpenChannelList: () -> Unit,
+    onOpenAddToList: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val firstFocus = remember { FocusRequester() }
@@ -93,6 +95,13 @@ fun PlayerOverlay(
                 Icon(
                     Icons.AutoMirrored.Filled.List,
                     contentDescription = "Channel list",
+                    tint = Color.White,
+                )
+            }
+            IconButton(onClick = onOpenAddToList) {
+                Icon(
+                    Icons.AutoMirrored.Filled.PlaylistAdd,
+                    contentDescription = "Add to list",
                     tint = Color.White,
                 )
             }

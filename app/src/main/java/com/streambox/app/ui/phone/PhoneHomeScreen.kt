@@ -137,12 +137,12 @@ fun PhoneHomeScreen(
                 }
             } else {
                 LazyColumn(contentPadding = PaddingValues(bottom = 24.dp)) {
-                    items(specialRows, key = { it.title }) { row ->
+                    items(specialRows, key = { it.key }) { row ->
                         PhoneChannelRow(
                             title = row.title,
                             channels = row.channels,
                             nowTitles = nowTitles,
-                            zapContext = { viewModel.zapContextFor(row.title) },
+                            zapContext = { row.zap },
                             onPlayChannel = onPlayChannel,
                         )
                     }

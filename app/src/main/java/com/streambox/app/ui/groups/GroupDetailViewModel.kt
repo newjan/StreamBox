@@ -57,6 +57,7 @@ class GroupDetailViewModel @Inject constructor(
                     country = groupKey.takeIf { groupType == HomeGroupBy.COUNTRY },
                     favoritesOnly = false,
                     hideDead = hideDead,
+                    customCategoryId = null,
                 )
             }.flow
         }

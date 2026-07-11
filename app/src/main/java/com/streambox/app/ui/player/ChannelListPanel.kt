@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
 import com.streambox.app.data.db.ChannelWithState
+import com.streambox.app.data.db.CustomCategoryWithCount
 import com.streambox.app.data.db.GroupCount
 import com.streambox.app.data.settings.HomeGroupBy
 import com.streambox.app.ui.shared.LogoImage
@@ -55,12 +56,14 @@ fun ChannelListPanel(
     groupType: HomeGroupBy,
     selectedGroup: String?,
     favoritesCount: Int,
+    customLists: List<CustomCategoryWithCount>,
     channels: LazyPagingItems<ChannelWithState>,
     currentKey: String?,
     nowPlaying: String?,
     onGroupTypeChange: (HomeGroupBy) -> Unit,
     onGroupSelect: (String?) -> Unit,
     onSelect: (String) -> Unit,
+    onNewList: () -> Unit,
     topFocus: FocusRequester,
     modifier: Modifier = Modifier,
 ) {
@@ -72,8 +75,10 @@ fun ChannelListPanel(
     // D-pad focus reliably lands inside the panel.
     LaunchedEffect(groups.isNotEmpty()) {
         val index = selectedGroup?.let { sel -> groups.indexOfFirst { it.name == sel } } ?: -1
-        // +2 for the pinned Favorites and "All channels" rows.
-        if (index >= 0) runCatching { groupListState.scrollToItem(index + 2) }
+        // Pinned rows before the plain groups: Favorites, custom lists,
+        // "+ New list", "All channels".
+        val pinnedCount = 3 + customLists.size
+        if (index >= 0) runCatching { groupListState.scrollToItem(index + pinnedCount) }
         withFrameNanos { }
         withFrameNanos { }
         runCatching { selectedFocus.requestFocus() }
@@ -123,6 +128,29 @@ fun ChannelListPanel(
                         },
                     )
                 }
+                items(count = customLists.size, key = { "custom_${customLists[it].id}" }) { index ->
+                    val list = customLists[index]
+                    val sentinel = PlayerViewModel.CUSTOM_PREFIX + list.id
+                    GroupRow(
+                        label = "★ ${list.name}",
+                        count = list.count,
+                        isSelected = selectedGroup == sentinel,
+                        onClick = { onGroupSelect(sentinel) },
+                        modifier = if (selectedGroup == sentinel) {
+                            Modifier.focusRequester(selectedFocus)
+                        } else {
+                            Modifier
+                        },
+                    )
+                }
+                item(key = "__new_list__") {
+                    GroupRow(
+                        label = "+ New list",
+                        count = null,
+                        isSelected = false,
+                        onClick = onNewList,
+                    )
+                }
                 item(key = "__all__") {
                     GroupRow(
                         label = "All channels",
@@ -165,6 +193,10 @@ fun ChannelListPanel(
                 text = when {
                     selectedGroup == null -> "All channels"
                     selectedGroup == PlayerViewModel.FAVORITES_GROUP -> "♥ Favorites"
+                    PlayerViewModel.customIdOf(selectedGroup) != null -> {
+                        val id = PlayerViewModel.customIdOf(selectedGroup)
+                        "★ ${customLists.firstOrNull { it.id == id }?.name ?: "List"}"
+                    }
                     groupType == HomeGroupBy.COUNTRY ->
                         "${countryFlagEmoji(selectedGroup)} $selectedGroup".trim()
                     else -> selectedGroup

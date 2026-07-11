@@ -89,6 +89,7 @@ class BrowseViewModel @Inject constructor(
                         filter.country,
                         filter.favoritesOnly,
                         filter.hideDead,
+                        customCategoryId = null,
                     )
                 }.flow
             }

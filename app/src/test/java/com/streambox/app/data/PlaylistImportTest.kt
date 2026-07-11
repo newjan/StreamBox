@@ -38,22 +38,25 @@ private class FakeChannelDao : ChannelDao {
 
     override fun pagingSource(
         query: String, category: String?, country: String?, favoritesOnly: Boolean, hideDead: Boolean,
+        customCategoryId: Long?,
     ): PagingSource<Int, ChannelWithState> = throw UnsupportedOperationException()
     override fun byKey(key: String): Flow<ChannelWithState?> = throw UnsupportedOperationException()
     override suspend fun byKeyOnce(key: String): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun nextAfter(
         name: String, key: String, query: String, category: String?, country: String?,
-        favoritesOnly: Boolean, hideDead: Boolean,
+        favoritesOnly: Boolean, hideDead: Boolean, customCategoryId: Long?,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun prevBefore(
         name: String, key: String, query: String, category: String?, country: String?,
-        favoritesOnly: Boolean, hideDead: Boolean,
+        favoritesOnly: Boolean, hideDead: Boolean, customCategoryId: Long?,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun first(
         query: String, category: String?, country: String?, favoritesOnly: Boolean, hideDead: Boolean,
+        customCategoryId: Long?,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun last(
         query: String, category: String?, country: String?, favoritesOnly: Boolean, hideDead: Boolean,
+        customCategoryId: Long?,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override fun categories(): Flow<List<String>> = throw UnsupportedOperationException()
     override fun countries(): Flow<List<String>> = throw UnsupportedOperationException()

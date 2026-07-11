@@ -10,12 +10,14 @@ data class ZapContext(
     val category: String? = null,
     val country: String? = null,
     val favoritesOnly: Boolean = false,
+    val customCategoryId: Long? = null,
 ) {
     fun encode(): String = listOf(
         query,
         category.orEmpty(),
         country.orEmpty(),
         if (favoritesOnly) "1" else "0",
+        customCategoryId?.toString().orEmpty(),
     ).joinToString(SEP)
 
     companion object {
@@ -29,6 +31,7 @@ data class ZapContext(
                 category = parts.getOrNull(1)?.takeIf(String::isNotEmpty),
                 country = parts.getOrNull(2)?.takeIf(String::isNotEmpty),
                 favoritesOnly = parts.getOrNull(3) == "1",
+                customCategoryId = parts.getOrNull(4)?.toLongOrNull(),
             )
         }
     }

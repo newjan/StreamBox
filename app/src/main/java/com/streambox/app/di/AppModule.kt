@@ -7,6 +7,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelHealthDao
+import com.streambox.app.data.db.CustomCategoryDao
 import com.streambox.app.data.db.FavoriteDao
 import com.streambox.app.data.db.ProgrammeDao
 import com.streambox.app.data.db.RecentDao
@@ -39,7 +40,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): StreamBoxDatabase =
         Room.databaseBuilder(context, StreamBoxDatabase::class.java, "streambox.db")
-            .addMigrations(StreamBoxDatabase.MIGRATION_1_2)
+            .addMigrations(StreamBoxDatabase.MIGRATION_1_2, StreamBoxDatabase.MIGRATION_2_3)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -48,6 +49,7 @@ object AppModule {
     @Provides fun provideRecentDao(db: StreamBoxDatabase): RecentDao = db.recentDao()
     @Provides fun provideProgrammeDao(db: StreamBoxDatabase): ProgrammeDao = db.programmeDao()
     @Provides fun provideChannelHealthDao(db: StreamBoxDatabase): ChannelHealthDao = db.channelHealthDao()
+    @Provides fun provideCustomCategoryDao(db: StreamBoxDatabase): CustomCategoryDao = db.customCategoryDao()
 
     @Provides
     @Singleton

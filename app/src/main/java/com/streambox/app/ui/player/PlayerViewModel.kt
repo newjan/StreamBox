@@ -13,6 +13,9 @@ import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelHealthDao
 import com.streambox.app.data.db.ChannelHealthEntity
 import com.streambox.app.data.db.ChannelWithState
+import com.streambox.app.data.db.CustomCategoryDao
+import com.streambox.app.data.db.CustomCategoryEntity
+import com.streambox.app.data.db.CustomCategoryWithCount
 import com.streambox.app.data.db.FavoriteDao
 import com.streambox.app.data.db.GroupCount
 import com.streambox.app.data.db.HealthStatus
@@ -35,6 +38,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
@@ -52,6 +56,7 @@ class PlayerViewModel @Inject constructor(
     private val recentDao: RecentDao,
     private val healthDao: ChannelHealthDao,
     private val settings: SettingsRepository,
+    private val customCategoryDao: CustomCategoryDao,
     programmeDao: ProgrammeDao,
 ) : ViewModel() {
 
@@ -101,15 +106,54 @@ class PlayerViewModel @Inject constructor(
     )
 
     /**
-     * Selected group in the panel; null means "All channels" and
-     * [FAVORITES_GROUP] is the pinned Favorites pseudo-group.
+     * Selected group in the panel; null means "All channels",
+     * [FAVORITES_GROUP] is the pinned Favorites pseudo-group, and custom
+     * lists are encoded as [CUSTOM_PREFIX] + id.
      */
     val panelSelectedGroup = MutableStateFlow<String?>(
         when {
             initialZap.favoritesOnly -> FAVORITES_GROUP
+            initialZap.customCategoryId != null -> CUSTOM_PREFIX + initialZap.customCategoryId
             else -> initialZap.category ?: initialZap.country
         },
     )
+
+    /** User-created lists with counts, for the panel and add-to-list menu. */
+    val customCategories: StateFlow<List<CustomCategoryWithCount>> =
+        customCategoryDao.categoriesWithCounts()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Custom-list ids that contain the current channel (add-menu checkmarks). */
+    val currentChannelListIds: StateFlow<Set<Long>> = _currentChannel
+        .flatMapLatest { ch ->
+            ch?.let { customCategoryDao.categoryIdsFor(it.channel.key) } ?: flowOf(emptyList())
+        }
+        .map { it.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    /** Toggles the current channel's membership in a custom list. */
+    fun toggleCurrentChannelInList(categoryId: Long) {
+        val key = _currentChannel.value?.channel?.key ?: return
+        viewModelScope.launch { customCategoryDao.toggle(categoryId, key) }
+    }
+
+    /**
+     * Creates a list (name only) and files the currently playing channel
+     * into it right away — the "create from the player" flow.
+     */
+    fun createListWithCurrentChannel(name: String) {
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        val key = _currentChannel.value?.channel?.key
+        viewModelScope.launch {
+            val id = customCategoryDao.insert(
+                CustomCategoryEntity(name = trimmed, createdAt = System.currentTimeMillis())
+            )
+            if (id > 0 && key != null) {
+                customCategoryDao.toggle(id, key)
+            }
+        }
+    }
 
     val favoritesCount: StateFlow<Int> = favoriteDao.count()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
@@ -145,13 +189,17 @@ class PlayerViewModel @Inject constructor(
                         maxSize = 600,
                     ),
                 ) {
-                    val realGroup = group.takeIf { it != FAVORITES_GROUP }
+                    val customId = customIdOf(group)
+                    val realGroup = group.takeIf {
+                        it != FAVORITES_GROUP && customId == null
+                    }
                     channelDao.pagingSource(
                         query = "",
                         category = realGroup.takeIf { type == HomeGroupBy.CATEGORY },
                         country = realGroup.takeIf { type == HomeGroupBy.COUNTRY },
                         favoritesOnly = group == FAVORITES_GROUP,
                         hideDead = hideDead,
+                        customCategoryId = customId,
                     )
                 }.flow
             }
@@ -178,11 +226,13 @@ class PlayerViewModel @Inject constructor(
      */
     fun playByKey(key: String) {
         val group = panelSelectedGroup.value
-        val realGroup = group.takeIf { it != FAVORITES_GROUP }
+        val customId = customIdOf(group)
+        val realGroup = group.takeIf { it != FAVORITES_GROUP && customId == null }
         zapCtx.value = ZapContext(
             category = realGroup.takeIf { panelGroupType.value == HomeGroupBy.CATEGORY },
             country = realGroup.takeIf { panelGroupType.value == HomeGroupBy.COUNTRY },
             favoritesOnly = group == FAVORITES_GROUP,
+            customCategoryId = customId,
         )
         if (key == _currentChannel.value?.channel?.key) return
         viewModelScope.launch {
@@ -220,14 +270,14 @@ class PlayerViewModel @Inject constructor(
     private fun zap(forward: Boolean) {
         val current = _currentChannel.value ?: return
         viewModelScope.launch {
-            val (q, cat, co, fav) = zapCtx.value
+            val (q, cat, co, fav, custom) = zapCtx.value
             val hide = settings.hideDead.first()
             val next = if (forward) {
-                channelDao.nextAfter(current.channel.name, current.channel.key, q, cat, co, fav, hide)
-                    ?: channelDao.first(q, cat, co, fav, hide)
+                channelDao.nextAfter(current.channel.name, current.channel.key, q, cat, co, fav, hide, custom)
+                    ?: channelDao.first(q, cat, co, fav, hide, custom)
             } else {
-                channelDao.prevBefore(current.channel.name, current.channel.key, q, cat, co, fav, hide)
-                    ?: channelDao.last(q, cat, co, fav, hide)
+                channelDao.prevBefore(current.channel.name, current.channel.key, q, cat, co, fav, hide, custom)
+                    ?: channelDao.last(q, cat, co, fav, hide, custom)
             }
             if (next != null && next.channel.key != current.channel.key) {
                 switchTo(next)
@@ -265,7 +315,14 @@ class PlayerViewModel @Inject constructor(
 
     companion object {
         /** Sentinel key for the pinned Favorites entry in the panel. */
-        const val FAVORITES_GROUP = " favorites"
+        const val FAVORITES_GROUP = "\u0000favorites"
+
+        /** Prefix marking a custom-list selection in [panelSelectedGroup]. */
+        const val CUSTOM_PREFIX = "\u0000custom:"
+
+        fun customIdOf(group: String?): Long? =
+            group?.takeIf { it.startsWith(CUSTOM_PREFIX) }
+                ?.removePrefix(CUSTOM_PREFIX)?.toLongOrNull()
     }
 }
 

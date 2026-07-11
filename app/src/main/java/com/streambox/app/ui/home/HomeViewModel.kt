@@ -6,6 +6,7 @@ import com.streambox.app.data.ImportProgress
 import com.streambox.app.data.PlaylistRepository
 import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelWithState
+import com.streambox.app.data.db.CustomCategoryDao
 import com.streambox.app.data.db.FavoriteDao
 import com.streambox.app.data.db.ProgrammeDao
 import com.streambox.app.data.db.RecentDao
@@ -22,12 +23,20 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class HomeRow(val title: String, val channels: List<ChannelWithState>)
+data class HomeRow(
+    val title: String,
+    val channels: List<ChannelWithState>,
+    /** Zapping filter for playback launched from this row. */
+    val zap: ZapContext = ZapContext(),
+    /** Stable list key (custom lists could collide with built-in titles). */
+    val key: String = title,
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
@@ -39,6 +48,7 @@ class HomeViewModel @Inject constructor(
     favoriteDao: FavoriteDao,
     recentDao: RecentDao,
     programmeDao: ProgrammeDao,
+    customCategoryDao: CustomCategoryDao,
 ) : ViewModel() {
 
     /** tvg-id → currently airing title, for card subtitles. Empty without EPG. */
@@ -63,14 +73,39 @@ class HomeViewModel @Inject constructor(
     private val hideDead: StateFlow<Boolean> = settings.hideDead
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    /** Continue Watching + Favorites; small and always loaded eagerly. */
+    /** User-created lists as rows, each limited like the group rows. */
+    private val customRows: Flow<List<HomeRow>> =
+        customCategoryDao.categoriesWithCounts().flatMapLatest { lists ->
+            if (lists.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    lists.map { list ->
+                        customCategoryDao.channelsFor(list.id, CHANNELS_PER_ROW).map { channels ->
+                            HomeRow(
+                                title = list.name,
+                                channels = channels,
+                                zap = ZapContext(customCategoryId = list.id),
+                                key = "custom:${list.id}",
+                            )
+                        }
+                    }
+                ) { rows -> rows.filter { it.channels.isNotEmpty() } }
+            }
+        }
+
+    /** Continue Watching + Favorites + custom lists; always loaded eagerly. */
     val specialRows: StateFlow<List<HomeRow>> = combine(
         recentDao.recents(20),
         favoriteDao.favorites(20),
-    ) { recents, favorites ->
+        customRows,
+    ) { recents, favorites, customs ->
         buildList {
             if (recents.isNotEmpty()) add(HomeRow(CONTINUE_WATCHING, recents))
-            if (favorites.isNotEmpty()) add(HomeRow(FAVORITES, favorites))
+            if (favorites.isNotEmpty()) {
+                add(HomeRow(FAVORITES, favorites, ZapContext(favoritesOnly = true)))
+            }
+            addAll(customs)
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
