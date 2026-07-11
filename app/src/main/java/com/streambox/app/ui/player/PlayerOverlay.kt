@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
@@ -42,6 +43,7 @@ fun PlayerOverlay(
     onZapPrev: () -> Unit,
     onZapNext: () -> Unit,
     onCycleResize: () -> Unit,
+    onOpenChannelList: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val firstFocus = remember { FocusRequester() }
@@ -86,6 +88,13 @@ fun PlayerOverlay(
             }
             IconButton(onClick = onCycleResize) {
                 Icon(Icons.Default.AspectRatio, contentDescription = "Aspect ratio", tint = Color.White)
+            }
+            IconButton(onClick = onOpenChannelList) {
+                Icon(
+                    Icons.AutoMirrored.Filled.List,
+                    contentDescription = "Channel list",
+                    tint = Color.White,
+                )
             }
             Text(
                 text = when (resizeMode) {

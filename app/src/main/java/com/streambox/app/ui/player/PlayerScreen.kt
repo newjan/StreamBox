@@ -36,9 +36,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
@@ -62,6 +65,8 @@ fun PlayerScreen(
     var overlayInteraction by remember { mutableIntStateOf(0) }
     var bannerVisible by remember { mutableStateOf(false) }
     var centerLongPressFired by remember { mutableStateOf(false) }
+    var channelListVisible by remember { mutableStateOf(false) }
+    val listChannels = viewModel.listChannels.collectAsLazyPagingItems()
 
     val rootFocus = remember { FocusRequester() }
 
@@ -89,16 +94,20 @@ fun PlayerScreen(
         }
     }
 
-    // The root Box holds focus while the overlay is hidden so it receives
-    // D-pad events; focus moves into the overlay when it appears.
-    LaunchedEffect(overlayVisible) {
-        if (!overlayVisible) rootFocus.requestFocus()
+    // The root Box holds focus while no panel is open so it receives
+    // D-pad events; focus moves into whichever panel appears.
+    LaunchedEffect(overlayVisible, channelListVisible) {
+        if (!overlayVisible && !channelListVisible) rootFocus.requestFocus()
     }
     LaunchedEffect(playerState) {
-        if (playerState !is PlayerUiState.Error && !overlayVisible) rootFocus.requestFocus()
+        if (playerState !is PlayerUiState.Error && !overlayVisible && !channelListVisible) {
+            rootFocus.requestFocus()
+        }
     }
 
     BackHandler(enabled = overlayVisible) { overlayVisible = false }
+    // Composed after the overlay handler so it wins while the panel is open.
+    BackHandler(enabled = channelListVisible) { channelListVisible = false }
 
     Box(
         modifier = Modifier
@@ -108,8 +117,23 @@ fun PlayerScreen(
             .onPreviewKeyEvent { event ->
                 val native = event.nativeKeyEvent
                 val code = native.keyCode
+                // While the channel panel is open, all keys go to the panel.
+                if (channelListVisible) return@onPreviewKeyEvent false
                 when (native.action) {
                     AndroidKeyEvent.ACTION_DOWN -> when (code) {
+                        AndroidKeyEvent.KEYCODE_MENU -> {
+                            channelListVisible = true
+                            overlayVisible = false
+                            true
+                        }
+                        AndroidKeyEvent.KEYCODE_DPAD_LEFT -> {
+                            if (!overlayVisible && playerState !is PlayerUiState.Error) {
+                                channelListVisible = true
+                                true
+                            } else {
+                                false
+                            }
+                        }
                         AndroidKeyEvent.KEYCODE_DPAD_UP,
                         AndroidKeyEvent.KEYCODE_CHANNEL_UP,
                         -> {
@@ -199,7 +223,7 @@ fun PlayerScreen(
         }
 
         AnimatedVisibility(
-            visible = bannerVisible && channel != null,
+            visible = bannerVisible && channel != null && !channelListVisible,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
@@ -225,6 +249,24 @@ fun PlayerScreen(
                 onZapPrev = { viewModel.zapPrev(); overlayInteraction++ },
                 onZapNext = { viewModel.zapNext(); overlayInteraction++ },
                 onCycleResize = { viewModel.cycleResizeMode(); overlayInteraction++ },
+                onOpenChannelList = {
+                    overlayVisible = false
+                    channelListVisible = true
+                },
+            )
+        }
+
+        AnimatedVisibility(
+            visible = channelListVisible,
+            enter = slideInHorizontally { -it },
+            exit = slideOutHorizontally { -it },
+            modifier = Modifier.align(Alignment.CenterStart),
+        ) {
+            ChannelListPanel(
+                channels = listChannels,
+                currentKey = channel?.channel?.key,
+                nowPlaying = nowPlaying,
+                onSelect = viewModel::playByKey,
             )
         }
     }

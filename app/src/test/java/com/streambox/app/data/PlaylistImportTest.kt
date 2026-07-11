@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelEntity
 import com.streambox.app.data.db.ChannelWithState
+import com.streambox.app.data.db.GroupCount
 import com.streambox.app.data.db.KeyUrl
 import com.streambox.app.data.m3u.M3uParser
 import kotlinx.coroutines.flow.Flow
@@ -62,6 +63,8 @@ private class FakeChannelDao : ChannelDao {
     override fun channelsForCountry(
         country: String, favoritesOnly: Boolean, hideDead: Boolean, limit: Int,
     ): Flow<List<ChannelWithState>> = throw UnsupportedOperationException()
+    override fun categoryCounts(): Flow<List<GroupCount>> = throw UnsupportedOperationException()
+    override fun countryCounts(): Flow<List<GroupCount>> = throw UnsupportedOperationException()
     override suspend fun keyUrls(): List<KeyUrl> = throw UnsupportedOperationException()
     override fun countFlow(): Flow<Int> = throw UnsupportedOperationException()
     override suspend fun clearAll() = throw UnsupportedOperationException()

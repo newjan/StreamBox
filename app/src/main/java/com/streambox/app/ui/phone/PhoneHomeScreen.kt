@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,6 +51,7 @@ fun PhoneHomeScreen(
     onOpenBrowse: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenGroups: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val specialRows by viewModel.specialRows.collectAsStateWithLifecycle()
@@ -70,6 +72,9 @@ fun PhoneHomeScreen(
                     }
                     IconButton(onClick = onOpenBrowse) {
                         Icon(Icons.AutoMirrored.Filled.List, contentDescription = "All channels")
+                    }
+                    IconButton(onClick = onOpenGroups) {
+                        Icon(Icons.Default.GridView, contentDescription = "Browse groups")
                     }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")

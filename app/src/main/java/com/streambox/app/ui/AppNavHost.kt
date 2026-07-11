@@ -9,7 +9,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.streambox.app.data.settings.HomeGroupBy
 import com.streambox.app.player.ZapContext
+import com.streambox.app.ui.groups.GroupDetailScreen
+import com.streambox.app.ui.groups.GroupsScreen
 import com.streambox.app.ui.phone.AboutScreen
 import com.streambox.app.ui.phone.PhoneBrowseScreen
 import com.streambox.app.ui.phone.PhoneHomeScreen
@@ -27,10 +30,15 @@ object Routes {
     const val SEARCH = "search"
     const val SETTINGS = "settings"
     const val ABOUT = "about"
+    const val GROUPS = "groups"
+    const val GROUP_DETAIL = "group/{type}/{key}"
     const val PLAYER = "player/{channelKey}?ctx={ctx}"
 
     fun player(channelKey: String, ctx: ZapContext): String =
         "player/$channelKey?ctx=${Uri.encode(ctx.encode())}"
+
+    fun groupDetail(type: HomeGroupBy, key: String): String =
+        "group/${type.name}/${Uri.encode(key)}"
 }
 
 fun NavHostController.openPlayer(channelKey: String, ctx: ZapContext) {
@@ -51,6 +59,7 @@ fun AppNavHost(isTv: Boolean) {
                     onOpenBrowse = { navController.navigate(Routes.BROWSE) },
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onOpenGroups = { navController.navigate(Routes.GROUPS) },
                 )
             } else {
                 PhoneHomeScreen(
@@ -58,8 +67,29 @@ fun AppNavHost(isTv: Boolean) {
                     onOpenBrowse = { navController.navigate(Routes.BROWSE) },
                     onOpenSearch = { navController.navigate(Routes.SEARCH) },
                     onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                    onOpenGroups = { navController.navigate(Routes.GROUPS) },
                 )
             }
+        }
+        composable(Routes.GROUPS) {
+            GroupsScreen(
+                onOpenGroup = { type, key ->
+                    navController.navigate(Routes.groupDetail(type, key))
+                },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.GROUP_DETAIL,
+            arguments = listOf(
+                navArgument("type") { type = NavType.StringType },
+                navArgument("key") { type = NavType.StringType },
+            ),
+        ) {
+            GroupDetailScreen(
+                onPlayChannel = openPlayer,
+                onBack = { navController.popBackStack() },
+            )
         }
         composable(Routes.BROWSE) {
             if (isTv) {

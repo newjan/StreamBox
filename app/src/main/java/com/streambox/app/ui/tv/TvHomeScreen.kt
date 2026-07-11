@@ -45,6 +45,7 @@ fun TvHomeScreen(
     onOpenBrowse: () -> Unit,
     onOpenSearch: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenGroups: () -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val specialRows by viewModel.specialRows.collectAsStateWithLifecycle()
@@ -75,6 +76,7 @@ fun TvHomeScreen(
                 onClick = onOpenBrowse,
                 modifier = Modifier.focusRequester(firstNavFocus),
             )
+            TvPill(label = "Groups", onClick = onOpenGroups)
             TvPill(label = "Search", onClick = onOpenSearch)
             TvPill(label = "Settings", onClick = onOpenSettings)
         }

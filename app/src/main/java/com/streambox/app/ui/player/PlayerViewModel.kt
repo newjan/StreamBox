@@ -5,6 +5,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelHealthDao
 import com.streambox.app.data.db.ChannelHealthEntity
@@ -20,6 +24,7 @@ import com.streambox.app.player.ZapContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -77,6 +82,39 @@ class PlayerViewModel @Inject constructor(
     /** Cycles fit → fill → zoom, mirrored to PlayerView's resize mode. */
     private val _resizeMode = MutableStateFlow(ResizeMode.FIT)
     val resizeMode: StateFlow<ResizeMode> = _resizeMode.asStateFlow()
+
+    /**
+     * The channels of the current zap context, paged, for the in-player
+     * channel-list panel. Same ordering the up/down zapping walks through.
+     */
+    val listChannels: Flow<PagingData<ChannelWithState>> = settings.hideDead
+        .flatMapLatest { hideDead ->
+            Pager(
+                config = PagingConfig(
+                    pageSize = 60,
+                    prefetchDistance = 120,
+                    enablePlaceholders = false,
+                    maxSize = 600,
+                ),
+            ) {
+                channelDao.pagingSource(
+                    zapContext.query,
+                    zapContext.category,
+                    zapContext.country,
+                    zapContext.favoritesOnly,
+                    hideDead,
+                )
+            }.flow
+        }
+        .cachedIn(viewModelScope)
+
+    /** Direct selection from the channel-list panel. */
+    fun playByKey(key: String) {
+        if (key == _currentChannel.value?.channel?.key) return
+        viewModelScope.launch {
+            channelDao.byKeyOnce(key)?.let(::switchTo)
+        }
+    }
 
     init {
         viewModelScope.launch {

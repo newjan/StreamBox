@@ -16,6 +16,8 @@ data class PlaylistPreset(val name: String, val url: String)
 
 enum class HomeGroupBy { CATEGORY, COUNTRY }
 
+enum class ViewMode { GRID, LIST }
+
 object PlaylistPresets {
     val presets = listOf(
         PlaylistPreset("iptv-org: All channels", DEFAULT_PLAYLIST_URL),
@@ -37,6 +39,7 @@ class SettingsRepository @Inject constructor(
         val HOME_GROUP_BY = stringPreferencesKey("home_group_by")
         val HOME_FAVORITES_ONLY = booleanPreferencesKey("home_favorites_only")
         val HIDE_DEAD = booleanPreferencesKey("hide_dead")
+        val GROUP_VIEW_MODE = stringPreferencesKey("group_view_mode")
     }
 
     val playlistUrl: Flow<String> =
@@ -73,6 +76,15 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setHideDead(value: Boolean) =
         dataStore.edit { it[Keys.HIDE_DEAD] = value }
+
+    /** Grid vs list presentation in the Groups browser. */
+    val groupViewMode: Flow<ViewMode> = dataStore.data.map {
+        runCatching { ViewMode.valueOf(it[Keys.GROUP_VIEW_MODE] ?: "") }
+            .getOrDefault(ViewMode.GRID)
+    }
+
+    suspend fun setGroupViewMode(value: ViewMode) =
+        dataStore.edit { it[Keys.GROUP_VIEW_MODE] = value.name }
 
     suspend fun setPlaylistUrl(url: String) =
         dataStore.edit { it[Keys.PLAYLIST_URL] = url.trim() }

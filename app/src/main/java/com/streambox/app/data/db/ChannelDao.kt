@@ -128,6 +128,20 @@ interface ChannelDao {
         limit: Int,
     ): Flow<List<ChannelWithState>>
 
+    @Query(
+        "SELECT category AS name, COUNT(*) AS count FROM channels " +
+            "WHERE category IS NOT NULL AND category != '' " +
+            "GROUP BY category ORDER BY category COLLATE NOCASE"
+    )
+    fun categoryCounts(): Flow<List<GroupCount>>
+
+    @Query(
+        "SELECT country AS name, COUNT(*) AS count FROM channels " +
+            "WHERE country IS NOT NULL AND country != '' " +
+            "GROUP BY country ORDER BY country"
+    )
+    fun countryCounts(): Flow<List<GroupCount>>
+
     /** Key/URL pairs for the health scanner. */
     @Query("SELECT `key`, url FROM channels")
     suspend fun keyUrls(): List<KeyUrl>
@@ -155,3 +169,5 @@ interface ChannelDao {
 }
 
 data class KeyUrl(val key: String, val url: String)
+
+data class GroupCount(val name: String, val count: Int)
