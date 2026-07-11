@@ -1,5 +1,10 @@
 # StreamBox
 
+**Try it on the web:** https://newjan.github.io/StreamBox/ — a lightweight
+browser companion (HLS playback, favorites and custom lists in your browser).
+Browsers can't play `http://` or non-CORS streams, so the Android app below
+plays far more of the catalog.
+
 A modern IPTV player for Android phones **and** Android TV, built with Kotlin,
 Jetpack Compose, Compose for TV, and Media3 ExoPlayer. One universal APK runs
 on both form factors: touch UI on phones, a D-pad-driven 10-foot UI on TV.
