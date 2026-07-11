@@ -39,20 +39,30 @@ on both form factors: touch UI on phones, a D-pad-driven 10-foot UI on TV.
 exist, the release build falls back to the debug keystore so you can sideload
 right away.
 
-## Signing (optional, for real distribution)
+## Signing
+
+The build signs releases with `keystore/streambox.jks` when it exists (the
+whole `keystore/` directory is gitignored — never commit it). Create one with:
 
 ```bash
 mkdir -p keystore
 keytool -genkeypair -v -keystore keystore/streambox.jks \
   -alias streambox -keyalg RSA -keysize 2048 -validity 10000
+
+cat > keystore/keystore.properties <<EOF
+storePassword=<your store password>
+keyAlias=streambox
+keyPassword=<your key password>
+EOF
 ```
 
-Then export matching credentials before building (defaults are `streambox`):
+Credentials are read from `keystore/keystore.properties`, then from the
+`STREAMBOX_STORE_PASSWORD` / `STREAMBOX_KEY_ALIAS` / `STREAMBOX_KEY_PASSWORD`
+environment variables. Without a keystore, release builds fall back to debug
+signing so `./gradlew assembleRelease` always works.
 
-```bash
-export STREAMBOX_STORE_PASSWORD=... STREAMBOX_KEY_ALIAS=streambox STREAMBOX_KEY_PASSWORD=...
-./gradlew assembleRelease
-```
+**Back up `keystore/` somewhere safe** — updates must be signed with the same
+key, or users have to uninstall/reinstall.
 
 Note: installing a build signed with a different key over an existing install
 requires uninstalling first (`adb uninstall com.streambox.app`).

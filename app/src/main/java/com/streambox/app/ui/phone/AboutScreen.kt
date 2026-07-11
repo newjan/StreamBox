@@ -41,7 +41,7 @@ fun AboutScreen(onBack: () -> Unit) {
         ) {
             Text("StreamBox", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Version 1.0",
+                "Version ${com.streambox.app.BuildConfig.VERSION_NAME}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

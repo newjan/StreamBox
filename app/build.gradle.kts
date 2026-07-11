@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -14,22 +16,31 @@ android {
         applicationId = "com.streambox.app"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
         vectorDrawables.useSupportLibrary = true
     }
 
     signingConfigs {
-        // Release falls back to the debug keystore so `assembleRelease` works
-        // out of the box. Replace with a real keystore for distribution —
-        // see README "Signing".
+        // Release signs with keystore/streambox.jks when present (credentials
+        // from the gitignored keystore/keystore.properties, or env vars) and
+        // falls back to the debug keystore so `assembleRelease` always works.
+        // See README "Signing".
         create("release") {
             val keystore = rootProject.file("keystore/streambox.jks")
             if (keystore.exists()) {
+                val props = Properties()
+                val propsFile = rootProject.file("keystore/keystore.properties")
+                if (propsFile.exists()) {
+                    propsFile.inputStream().use { props.load(it) }
+                }
                 storeFile = keystore
-                storePassword = System.getenv("STREAMBOX_STORE_PASSWORD") ?: "streambox"
-                keyAlias = System.getenv("STREAMBOX_KEY_ALIAS") ?: "streambox"
-                keyPassword = System.getenv("STREAMBOX_KEY_PASSWORD") ?: "streambox"
+                storePassword = props.getProperty("storePassword")
+                    ?: System.getenv("STREAMBOX_STORE_PASSWORD") ?: "streambox"
+                keyAlias = props.getProperty("keyAlias")
+                    ?: System.getenv("STREAMBOX_KEY_ALIAS") ?: "streambox"
+                keyPassword = props.getProperty("keyPassword")
+                    ?: System.getenv("STREAMBOX_KEY_PASSWORD") ?: "streambox"
             } else {
                 initWith(getByName("debug"))
             }
@@ -58,6 +69,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {
