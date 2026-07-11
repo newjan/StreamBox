@@ -14,9 +14,11 @@ import com.streambox.app.data.db.ChannelHealthDao
 import com.streambox.app.data.db.ChannelHealthEntity
 import com.streambox.app.data.db.ChannelWithState
 import com.streambox.app.data.db.FavoriteDao
+import com.streambox.app.data.db.GroupCount
 import com.streambox.app.data.db.HealthStatus
 import com.streambox.app.data.db.ProgrammeDao
 import com.streambox.app.data.db.RecentDao
+import com.streambox.app.data.settings.HomeGroupBy
 import com.streambox.app.data.settings.SettingsRepository
 import com.streambox.app.player.PlayerManager
 import com.streambox.app.player.PlayerUiState
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -52,8 +55,15 @@ class PlayerViewModel @Inject constructor(
     programmeDao: ProgrammeDao,
 ) : ViewModel() {
 
-    private val zapContext = ZapContext.decode(savedStateHandle.get<String>("ctx"))
+    private val initialZap = ZapContext.decode(savedStateHandle.get<String>("ctx"))
     private val initialKey: String = checkNotNull(savedStateHandle["channelKey"])
+
+    /**
+     * The active zapping filter. Starts as the context playback was launched
+     * from; picking a channel from another group in the panel retargets it so
+     * up/down zapping follows the new group.
+     */
+    private val zapCtx = MutableStateFlow(initialZap)
 
     val playerManager = PlayerManager(context, okHttpClient)
     val playerState: StateFlow<PlayerUiState> = playerManager.state
@@ -83,33 +93,72 @@ class PlayerViewModel @Inject constructor(
     private val _resizeMode = MutableStateFlow(ResizeMode.FIT)
     val resizeMode: StateFlow<ResizeMode> = _resizeMode.asStateFlow()
 
-    /**
-     * The channels of the current zap context, paged, for the in-player
-     * channel-list panel. Same ordering the up/down zapping walks through.
-     */
-    val listChannels: Flow<PagingData<ChannelWithState>> = settings.hideDead
-        .flatMapLatest { hideDead ->
-            Pager(
-                config = PagingConfig(
-                    pageSize = 60,
-                    prefetchDistance = 120,
-                    enablePlaceholders = false,
-                    maxSize = 600,
-                ),
-            ) {
-                channelDao.pagingSource(
-                    zapContext.query,
-                    zapContext.category,
-                    zapContext.country,
-                    zapContext.favoritesOnly,
-                    hideDead,
-                )
-            }.flow
-        }
-        .cachedIn(viewModelScope)
+    // ---- In-player channel panel: two-level (groups → channels) browser ----
 
-    /** Direct selection from the channel-list panel. */
+    /** Whether the panel's left column lists categories or countries. */
+    val panelGroupType = MutableStateFlow(
+        if (initialZap.country != null) HomeGroupBy.COUNTRY else HomeGroupBy.CATEGORY,
+    )
+
+    /** Selected group in the panel; null means "All channels". */
+    val panelSelectedGroup = MutableStateFlow<String?>(
+        initialZap.category ?: initialZap.country,
+    )
+
+    val panelGroups: StateFlow<List<GroupCount>> = panelGroupType
+        .flatMapLatest { type ->
+            when (type) {
+                HomeGroupBy.CATEGORY -> channelDao.categoryCounts()
+                HomeGroupBy.COUNTRY -> channelDao.countryCounts()
+            }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Channels of the panel's selected group, paged. */
+    val listChannels: Flow<PagingData<ChannelWithState>> =
+        combine(panelGroupType, panelSelectedGroup, settings.hideDead, ::Triple)
+            .flatMapLatest { (type, group, hideDead) ->
+                Pager(
+                    config = PagingConfig(
+                        pageSize = 60,
+                        prefetchDistance = 120,
+                        enablePlaceholders = false,
+                        maxSize = 600,
+                    ),
+                ) {
+                    channelDao.pagingSource(
+                        query = "",
+                        category = group.takeIf { type == HomeGroupBy.CATEGORY },
+                        country = group.takeIf { type == HomeGroupBy.COUNTRY },
+                        favoritesOnly = initialZap.favoritesOnly,
+                        hideDead = hideDead,
+                    )
+                }.flow
+            }
+            .cachedIn(viewModelScope)
+
+    fun setPanelGroupType(type: HomeGroupBy) {
+        if (panelGroupType.value != type) {
+            panelGroupType.value = type
+            panelSelectedGroup.value = null
+        }
+    }
+
+    fun selectPanelGroup(group: String?) {
+        panelSelectedGroup.value = group
+    }
+
+    /**
+     * Direct selection from the channel panel. Also retargets the zapping
+     * filter to the panel's group so up/down continues within it.
+     */
     fun playByKey(key: String) {
+        val group = panelSelectedGroup.value
+        zapCtx.value = ZapContext(
+            category = group.takeIf { panelGroupType.value == HomeGroupBy.CATEGORY },
+            country = group.takeIf { panelGroupType.value == HomeGroupBy.COUNTRY },
+            favoritesOnly = initialZap.favoritesOnly,
+        )
         if (key == _currentChannel.value?.channel?.key) return
         viewModelScope.launch {
             channelDao.byKeyOnce(key)?.let(::switchTo)
@@ -146,7 +195,7 @@ class PlayerViewModel @Inject constructor(
     private fun zap(forward: Boolean) {
         val current = _currentChannel.value ?: return
         viewModelScope.launch {
-            val (q, cat, co, fav) = zapContext
+            val (q, cat, co, fav) = zapCtx.value
             val hide = settings.hideDead.first()
             val next = if (forward) {
                 channelDao.nextAfter(current.channel.name, current.channel.key, q, cat, co, fav, hide)

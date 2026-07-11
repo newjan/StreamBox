@@ -67,6 +67,9 @@ fun PlayerScreen(
     var centerLongPressFired by remember { mutableStateOf(false) }
     var channelListVisible by remember { mutableStateOf(false) }
     val listChannels = viewModel.listChannels.collectAsLazyPagingItems()
+    val panelGroups by viewModel.panelGroups.collectAsStateWithLifecycle()
+    val panelGroupType by viewModel.panelGroupType.collectAsStateWithLifecycle()
+    val panelSelectedGroup by viewModel.panelSelectedGroup.collectAsStateWithLifecycle()
 
     val rootFocus = remember { FocusRequester() }
 
@@ -263,9 +266,14 @@ fun PlayerScreen(
             modifier = Modifier.align(Alignment.CenterStart),
         ) {
             ChannelListPanel(
+                groups = panelGroups,
+                groupType = panelGroupType,
+                selectedGroup = panelSelectedGroup,
                 channels = listChannels,
                 currentKey = channel?.channel?.key,
                 nowPlaying = nowPlaying,
+                onGroupTypeChange = viewModel::setPanelGroupType,
+                onGroupSelect = viewModel::selectPanelGroup,
                 onSelect = viewModel::playByKey,
             )
         }
