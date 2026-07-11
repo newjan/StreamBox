@@ -46,6 +46,11 @@ fun AboutScreen(onBack: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
+                "Developed by Neuzan",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
                 text = "StreamBox is a player only. It streams publicly available " +
                     "links from the iptv-org project (github.com/iptv-org/iptv) and " +
                     "hosts no content itself. Channel availability, stream quality, " +
