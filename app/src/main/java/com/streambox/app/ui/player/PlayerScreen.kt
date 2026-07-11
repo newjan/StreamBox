@@ -77,7 +77,9 @@ fun PlayerScreen(
     val favoritesCount by viewModel.favoritesCount.collectAsStateWithLifecycle()
     val customLists by viewModel.customCategories.collectAsStateWithLifecycle()
     val currentChannelListIds by viewModel.currentChannelListIds.collectAsStateWithLifecycle()
+    val panelQuery by viewModel.panelQuery.collectAsStateWithLifecycle()
     var addToListVisible by remember { mutableStateOf(false) }
+    var panelSearchFocused by remember { mutableStateOf(false) }
 
     val rootFocus = remember { FocusRequester() }
 
@@ -106,8 +108,10 @@ fun PlayerScreen(
     }
 
     // Auto-hide the channel panel 5s after the last key press or selection.
-    LaunchedEffect(channelListVisible, panelInteraction) {
-        if (channelListVisible) {
+    // Paused while the search field has focus — IME input doesn't produce
+    // key events, so typing must not race the timer.
+    LaunchedEffect(channelListVisible, panelInteraction, panelSearchFocused) {
+        if (channelListVisible && !panelSearchFocused) {
             delay(5000)
             channelListVisible = false
         }
@@ -334,6 +338,11 @@ fun PlayerScreen(
                     channelListVisible = false
                     addToListVisible = true
                 },
+                query = panelQuery,
+                onQueryChange = {
+                    viewModel.setPanelQuery(it); panelInteraction++
+                },
+                onSearchFocusChange = { panelSearchFocused = it },
             )
         }
 

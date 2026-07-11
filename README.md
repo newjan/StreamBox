@@ -1,7 +1,5 @@
 # StreamBox
 
-Developed by **Neuzan**.
-
 A modern IPTV player for Android phones **and** Android TV, built with Kotlin,
 Jetpack Compose, Compose for TV, and Media3 ExoPlayer. One universal APK runs
 on both form factors: touch UI on phones, a D-pad-driven 10-foot UI on TV.

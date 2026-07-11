@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -118,6 +119,13 @@ class PlayerViewModel @Inject constructor(
         },
     )
 
+    /** Live name filter for the panel's channel column. */
+    val panelQuery = MutableStateFlow("")
+
+    fun setPanelQuery(query: String) {
+        panelQuery.value = query
+    }
+
     /** User-created lists with counts, for the panel and add-to-list menu. */
     val customCategories: StateFlow<List<CustomCategoryWithCount>> =
         customCategoryDao.categoriesWithCounts()
@@ -177,10 +185,24 @@ class PlayerViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    /** Channels of the panel's selected group, paged. */
+    private data class PanelFilter(
+        val type: HomeGroupBy,
+        val group: String?,
+        val hideDead: Boolean,
+        val query: String,
+    )
+
+    /** Channels of the panel's selected group, paged and name-filtered. */
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
     val listChannels: Flow<PagingData<ChannelWithState>> =
-        combine(panelGroupType, panelSelectedGroup, settings.hideDead, ::Triple)
-            .flatMapLatest { (type, group, hideDead) ->
+        combine(
+            panelGroupType,
+            panelSelectedGroup,
+            settings.hideDead,
+            panelQuery.debounce(200),
+            ::PanelFilter,
+        )
+            .flatMapLatest { (type, group, hideDead, query) ->
                 Pager(
                     config = PagingConfig(
                         pageSize = 60,
@@ -194,7 +216,7 @@ class PlayerViewModel @Inject constructor(
                         it != FAVORITES_GROUP && customId == null
                     }
                     channelDao.pagingSource(
-                        query = "",
+                        query = query.trim(),
                         category = realGroup.takeIf { type == HomeGroupBy.CATEGORY },
                         country = realGroup.takeIf { type == HomeGroupBy.COUNTRY },
                         favoritesOnly = group == FAVORITES_GROUP,
