@@ -28,8 +28,9 @@ interface FavoriteDao {
     }
 
     @Query(
-        "SELECT c.*, 1 AS isFavorite FROM favorites f " +
+        "SELECT c.*, 1 AS isFavorite, h.status AS healthStatus FROM favorites f " +
             "JOIN channels c ON c.`key` = f.channelKey " +
+            "LEFT JOIN channel_health h ON h.channelKey = c.`key` " +
             "ORDER BY f.addedAt DESC LIMIT :limit"
     )
     fun favorites(limit: Int): Flow<List<ChannelWithState>>

@@ -45,6 +45,9 @@ fun PhoneSettingsScreen(
     val themeDark by viewModel.themeDark.collectAsStateWithLifecycle()
     val epgEnabled by viewModel.epgEnabled.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
+    val hideDead by viewModel.hideDead.collectAsStateWithLifecycle()
+    val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
+    val workingCount by viewModel.workingCount.collectAsStateWithLifecycle()
 
     var urlDraft by rememberSaveable { mutableStateOf("") }
     var urlEdited by rememberSaveable { mutableStateOf(false) }
@@ -136,6 +139,52 @@ fun PhoneSettingsScreen(
                 }
                 Switch(checked = epgEnabled, onCheckedChange = viewModel::setEpgEnabled)
             }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+
+            Text("Channel health", style = MaterialTheme.typography.titleMedium)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Hide non-working channels")
+                    Text(
+                        "Hides channels whose stream failed its last check. " +
+                            "Unchecked channels stay visible.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(checked = hideDead, onCheckedChange = viewModel::setHideDead)
+            }
+            Row(modifier = Modifier.padding(top = 8.dp)) {
+                if (scanProgress.running) {
+                    OutlinedButton(onClick = viewModel::stopScan) { Text("Stop scan") }
+                } else {
+                    Button(onClick = viewModel::startScan) { Text("Scan channels now") }
+                }
+            }
+            Text(
+                text = when {
+                    scanProgress.running ->
+                        "Checking… ${scanProgress.checked}/${scanProgress.total} " +
+                            "(${scanProgress.working} working)"
+                    workingCount > 0 -> "$workingCount channels confirmed working"
+                    else -> "No scan yet — playing a channel also records its status"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(
+                text = "A full scan probes every stream and can take a while on " +
+                    "large playlists. Some working streams reject probes and may " +
+                    "be misreported; playing them corrects their status.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp),
+            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 

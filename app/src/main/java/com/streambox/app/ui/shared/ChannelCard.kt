@@ -3,7 +3,9 @@ package com.streambox.app.ui.shared
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,9 +31,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.streambox.app.data.db.ChannelWithState
+import com.streambox.app.data.db.HealthStatus
 
 /**
  * Poster-style channel card for rows/grids. Scales up with an accent border
@@ -162,17 +167,35 @@ fun ChannelListItem(
                 }
             },
             trailingContent = {
-                if (channel.isFavorite) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = "Favorite",
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp),
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    when (channel.healthStatus) {
+                        HealthStatus.OK -> HealthDot(Color(0xFF4CAF50), "Working")
+                        HealthStatus.DEAD -> HealthDot(Color(0xFFE53935), "Not working")
+                    }
+                    if (channel.isFavorite) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = "Favorite",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(start = 6.dp)
+                                .size(18.dp),
+                        )
+                    }
                 }
             },
         )
     }
+}
+
+@Composable
+private fun HealthDot(color: Color, description: String) {
+    Box(
+        modifier = Modifier
+            .size(10.dp)
+            .background(color = color, shape = CircleShape)
+            .semantics { contentDescription = description },
+    )
 }
 
 @Composable

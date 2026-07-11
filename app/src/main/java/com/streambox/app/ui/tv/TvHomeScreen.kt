@@ -28,9 +28,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.tv.material3.MaterialTheme
 import androidx.tv.material3.Text
 import com.streambox.app.data.ImportProgress
+import com.streambox.app.data.settings.HomeGroupBy
 import com.streambox.app.player.ZapContext
 import com.streambox.app.ui.home.HomeViewModel
-import com.streambox.app.ui.home.HomeRow
+import com.streambox.app.ui.shared.countryFlagEmoji
 
 /**
  * Netflix-style rows: nav pills on top, then Continue Watching, Favorites,
@@ -47,7 +48,9 @@ fun TvHomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val specialRows by viewModel.specialRows.collectAsStateWithLifecycle()
-    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val rowKeys by viewModel.rowKeys.collectAsStateWithLifecycle()
+    val groupBy by viewModel.groupBy.collectAsStateWithLifecycle()
+    val favoritesOnly by viewModel.favoritesOnly.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val channelCount by viewModel.channelCount.collectAsStateWithLifecycle()
     val nowTitles by viewModel.nowTitles.collectAsStateWithLifecycle()
@@ -76,6 +79,28 @@ fun TvHomeScreen(
             TvPill(label = "Settings", onClick = onOpenSettings)
         }
 
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 48.dp, vertical = 8.dp),
+        ) {
+            TvPill(
+                label = "By category",
+                selected = groupBy == HomeGroupBy.CATEGORY,
+                onClick = { viewModel.setGroupBy(HomeGroupBy.CATEGORY) },
+            )
+            TvPill(
+                label = "By country",
+                selected = groupBy == HomeGroupBy.COUNTRY,
+                onClick = { viewModel.setGroupBy(HomeGroupBy.COUNTRY) },
+            )
+            TvPill(
+                label = "♥ Favorites",
+                selected = favoritesOnly,
+                onClick = { viewModel.setFavoritesOnly(!favoritesOnly) },
+            )
+        }
+
         (importProgress as? ImportProgress.Running)?.let { progress ->
             Text(
                 text = "Updating playlist… ${progress.count} channels",
@@ -85,7 +110,7 @@ fun TvHomeScreen(
             )
         }
 
-        if (specialRows.isEmpty() && categories.isEmpty()) {
+        if (specialRows.isEmpty() && rowKeys.isEmpty()) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(
@@ -114,24 +139,32 @@ fun TvHomeScreen(
                         title = row.title,
                         channels = row.channels,
                         nowTitles = nowTitles,
+                        zapContext = { viewModel.zapContextFor(row.title) },
                         onPlayChannel = onPlayChannel,
                     )
                 }
-                // Category rows query their channels only while on screen so
+                // Group rows query their channels only while on screen so
                 // grouped-by-country playlists (100+ rows) all appear.
-                items(categories, key = { it }) { category ->
-                    val channels by remember(category) { viewModel.channelsFor(category) }
-                        .collectAsStateWithLifecycle(initialValue = emptyList())
+                items(rowKeys, key = { it }) { rowKey ->
+                    val channels by remember(rowKey, groupBy, favoritesOnly) {
+                        viewModel.channelsFor(rowKey)
+                    }.collectAsStateWithLifecycle(initialValue = emptyList())
+                    val title = if (groupBy == HomeGroupBy.COUNTRY) {
+                        "${countryFlagEmoji(rowKey)} $rowKey".trim()
+                    } else {
+                        rowKey
+                    }
                     if (channels.isNotEmpty()) {
                         TvHomeRow(
-                            title = category,
+                            title = title,
                             channels = channels,
                             nowTitles = nowTitles,
+                            zapContext = { viewModel.zapContextFor(rowKey) },
                             onPlayChannel = onPlayChannel,
                         )
-                    } else {
+                    } else if (!favoritesOnly) {
                         Text(
-                            text = category,
+                            text = title,
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.padding(horizontal = 48.dp, vertical = 8.dp),
                         )
@@ -148,6 +181,7 @@ private fun TvHomeRow(
     title: String,
     channels: List<com.streambox.app.data.db.ChannelWithState>,
     nowTitles: Map<String, String>,
+    zapContext: () -> ZapContext,
     onPlayChannel: (String, ZapContext) -> Unit,
 ) {
     Column {
@@ -166,16 +200,10 @@ private fun TvHomeRow(
                     channel = channel,
                     subtitle = channel.channel.tvgId?.let(nowTitles::get),
                     onClick = {
-                        onPlayChannel(channel.channel.key, rowZapContext(title))
+                        onPlayChannel(channel.channel.key, zapContext())
                     },
                 )
             }
         }
     }
-}
-
-private fun rowZapContext(rowTitle: String): ZapContext = when (rowTitle) {
-    HomeViewModel.FAVORITES -> ZapContext(favoritesOnly = true)
-    HomeViewModel.CONTINUE_WATCHING -> ZapContext()
-    else -> ZapContext(category = rowTitle)
 }

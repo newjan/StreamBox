@@ -8,6 +8,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelWithState
+import com.streambox.app.data.settings.SettingsRepository
 import com.streambox.app.player.ZapContext
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +32,7 @@ import javax.inject.Inject
 @HiltViewModel
 class BrowseViewModel @Inject constructor(
     channelDao: ChannelDao,
+    settings: SettingsRepository,
 ) : ViewModel() {
 
     private val _query = MutableStateFlow("")
@@ -42,19 +44,37 @@ class BrowseViewModel @Inject constructor(
     private val _country = MutableStateFlow<String?>(null)
     val country: StateFlow<String?> = _country.asStateFlow()
 
+    private val _favoritesOnly = MutableStateFlow(false)
+    val favoritesOnly: StateFlow<Boolean> = _favoritesOnly.asStateFlow()
+
+    private val hideDead: StateFlow<Boolean> = settings.hideDead
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     val categories: StateFlow<List<String>> = channelDao.categories()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val countries: StateFlow<List<String>> = channelDao.countries()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private data class Filter(
+        val query: String,
+        val category: String?,
+        val country: String?,
+        val favoritesOnly: Boolean,
+        val hideDead: Boolean,
+    )
+
     val channels: Flow<PagingData<ChannelWithState>> =
         combine(
             _query.debounce(200),
             _category,
             _country,
-        ) { query, category, country -> Triple(query, category, country) }
-            .flatMapLatest { (query, category, country) ->
+            _favoritesOnly,
+            hideDead,
+        ) { query, category, country, favoritesOnly, hide ->
+            Filter(query.trim(), category, country, favoritesOnly, hide)
+        }
+            .flatMapLatest { filter ->
                 Pager(
                     config = PagingConfig(
                         pageSize = 60,
@@ -63,7 +83,13 @@ class BrowseViewModel @Inject constructor(
                         maxSize = 600,
                     ),
                 ) {
-                    channelDao.pagingSource(query.trim(), category, country, favoritesOnly = false)
+                    channelDao.pagingSource(
+                        filter.query,
+                        filter.category,
+                        filter.country,
+                        filter.favoritesOnly,
+                        filter.hideDead,
+                    )
                 }.flow
             }
             .cachedIn(viewModelScope)
@@ -80,10 +106,15 @@ class BrowseViewModel @Inject constructor(
         _country.value = value
     }
 
+    fun setFavoritesOnly(value: Boolean) {
+        _favoritesOnly.value = value
+    }
+
     /** The player zaps within whatever filter the user launched playback from. */
     fun zapContext(): ZapContext = ZapContext(
         query = _query.value.trim(),
         category = _category.value,
         country = _country.value,
+        favoritesOnly = _favoritesOnly.value,
     )
 }

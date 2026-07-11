@@ -39,6 +39,9 @@ fun TvSettingsScreen(
     val themeDark by viewModel.themeDark.collectAsStateWithLifecycle()
     val epgEnabled by viewModel.epgEnabled.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
+    val hideDead by viewModel.hideDead.collectAsStateWithLifecycle()
+    val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
+    val workingCount by viewModel.workingCount.collectAsStateWithLifecycle()
 
     var urlDraft by rememberSaveable { mutableStateOf("") }
     var urlEdited by rememberSaveable { mutableStateOf(false) }
@@ -130,6 +133,31 @@ fun TvSettingsScreen(
             label = if (epgEnabled) "Programme guide: On" else "Programme guide: Off",
             onClick = { viewModel.setEpgEnabled(!epgEnabled) },
         )
+        Text(
+            "Channel health",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        TvPill(
+            label = if (hideDead) "Hide non-working channels: On" else "Hide non-working channels: Off",
+            onClick = { viewModel.setHideDead(!hideDead) },
+        )
+        TvPill(
+            label = if (scanProgress.running) "Stop scan" else "Scan channels now",
+            onClick = { if (scanProgress.running) viewModel.stopScan() else viewModel.startScan() },
+        )
+        Text(
+            text = when {
+                scanProgress.running ->
+                    "Checking… ${scanProgress.checked}/${scanProgress.total} " +
+                        "(${scanProgress.working} working)"
+                workingCount > 0 -> "$workingCount channels confirmed working"
+                else -> "No scan yet — playing a channel also records its status"
+            },
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         TvPill(label = "Clear channel cache", onClick = viewModel::clearCache)
         TvPill(label = "About StreamBox", onClick = onOpenAbout)
 

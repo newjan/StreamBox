@@ -3,6 +3,7 @@ package com.streambox.app.ui.tv
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
@@ -13,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -41,6 +43,7 @@ fun TvBrowseScreen(
 ) {
     val category by viewModel.category.collectAsStateWithLifecycle()
     val country by viewModel.country.collectAsStateWithLifecycle()
+    val favoritesOnly by viewModel.favoritesOnly.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val countries by viewModel.countries.collectAsStateWithLifecycle()
     val channels = viewModel.channels.collectAsLazyPagingItems()
@@ -49,11 +52,21 @@ fun TvBrowseScreen(
     LaunchedEffect(Unit) { initialFocus.requestFocus() }
 
     Column(modifier = Modifier.fillMaxSize().padding(top = 24.dp)) {
-        Text(
-            text = "All Channels",
-            style = MaterialTheme.typography.headlineSmall,
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(horizontal = 48.dp),
-        )
+        ) {
+            Text(
+                text = "All Channels",
+                style = MaterialTheme.typography.headlineSmall,
+            )
+            TvPill(
+                label = "♥ Favorites only",
+                selected = favoritesOnly,
+                onClick = { viewModel.setFavoritesOnly(!favoritesOnly) },
+            )
+        }
 
         Text(
             text = "Category",

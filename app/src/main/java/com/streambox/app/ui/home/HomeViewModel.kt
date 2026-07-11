@@ -10,13 +10,18 @@ import com.streambox.app.data.db.FavoriteDao
 import com.streambox.app.data.db.ProgrammeDao
 import com.streambox.app.data.db.RecentDao
 import com.streambox.app.data.epg.EpgRepository
+import com.streambox.app.data.settings.HomeGroupBy
+import com.streambox.app.data.settings.SettingsRepository
+import com.streambox.app.player.ZapContext
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -24,11 +29,13 @@ import javax.inject.Inject
 
 data class HomeRow(val title: String, val channels: List<ChannelWithState>)
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     private val epgRepository: EpgRepository,
     private val channelDao: ChannelDao,
+    private val settings: SettingsRepository,
     favoriteDao: FavoriteDao,
     recentDao: RecentDao,
     programmeDao: ProgrammeDao,
@@ -46,6 +53,16 @@ class HomeViewModel @Inject constructor(
     val channelCount: StateFlow<Int> = channelDao.countFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
+    /** Eagerly shared so [zapContextFor] can read current values synchronously. */
+    val groupBy: StateFlow<HomeGroupBy> = settings.homeGroupBy
+        .stateIn(viewModelScope, SharingStarted.Eagerly, HomeGroupBy.CATEGORY)
+
+    val favoritesOnly: StateFlow<Boolean> = settings.homeFavoritesOnly
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val hideDead: StateFlow<Boolean> = settings.hideDead
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
     /** Continue Watching + Favorites; small and always loaded eagerly. */
     val specialRows: StateFlow<List<HomeRow>> = combine(
         recentDao.recents(20),
@@ -58,15 +75,49 @@ class HomeViewModel @Inject constructor(
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     /**
-     * Every group-title in the playlist, uncapped. Rows fetch their channels
-     * lazily via [channelsFor] only while visible, so a playlist with 100+
-     * groups (e.g. grouped-by-country) costs a bounded number of live queries.
+     * Row keys for the selected grouping (all group-titles or all countries),
+     * uncapped. Rows fetch their channels lazily via [channelsFor] only while
+     * visible, keeping live queries bounded on 100+ group playlists.
      */
-    val categories: StateFlow<List<String>> = channelDao.categories()
+    val rowKeys: StateFlow<List<String>> = groupBy
+        .flatMapLatest { grouping ->
+            when (grouping) {
+                HomeGroupBy.CATEGORY -> channelDao.categories()
+                HomeGroupBy.COUNTRY -> channelDao.countries()
+            }
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun channelsFor(category: String): Flow<List<ChannelWithState>> =
-        channelDao.channelsForCategory(category, CHANNELS_PER_ROW)
+    fun channelsFor(rowKey: String): Flow<List<ChannelWithState>> =
+        combine(groupBy, favoritesOnly, hideDead, ::Triple)
+            .flatMapLatest { (grouping, favOnly, hide) ->
+                when (grouping) {
+                    HomeGroupBy.CATEGORY ->
+                        channelDao.channelsForCategory(rowKey, favOnly, hide, CHANNELS_PER_ROW)
+                    HomeGroupBy.COUNTRY ->
+                        channelDao.channelsForCountry(rowKey, favOnly, hide, CHANNELS_PER_ROW)
+                }
+            }
+
+    /** Zapping in the player follows the row the channel was launched from. */
+    fun zapContextFor(rowTitle: String): ZapContext = when (rowTitle) {
+        FAVORITES -> ZapContext(favoritesOnly = true)
+        CONTINUE_WATCHING -> ZapContext()
+        else -> when (groupBy.value) {
+            HomeGroupBy.CATEGORY ->
+                ZapContext(category = rowTitle, favoritesOnly = favoritesOnly.value)
+            HomeGroupBy.COUNTRY ->
+                ZapContext(country = rowTitle, favoritesOnly = favoritesOnly.value)
+        }
+    }
+
+    fun setGroupBy(value: HomeGroupBy) {
+        viewModelScope.launch { settings.setHomeGroupBy(value) }
+    }
+
+    fun setFavoritesOnly(value: Boolean) {
+        viewModelScope.launch { settings.setHomeFavoritesOnly(value) }
+    }
 
     init {
         refresh()

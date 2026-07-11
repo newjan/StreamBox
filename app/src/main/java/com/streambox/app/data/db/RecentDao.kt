@@ -26,9 +26,11 @@ interface RecentDao {
     }
 
     @Query(
-        "SELECT c.*, (f.channelKey IS NOT NULL) AS isFavorite FROM recents r " +
+        "SELECT c.*, (f.channelKey IS NOT NULL) AS isFavorite, h.status AS healthStatus " +
+            "FROM recents r " +
             "JOIN channels c ON c.`key` = r.channelKey " +
             "LEFT JOIN favorites f ON f.channelKey = c.`key` " +
+            "LEFT JOIN channel_health h ON h.channelKey = c.`key` " +
             "ORDER BY r.playedAt DESC LIMIT :limit"
     )
     fun recents(limit: Int): Flow<List<ChannelWithState>>

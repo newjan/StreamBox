@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -42,6 +45,7 @@ fun PhoneBrowseScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val category by viewModel.category.collectAsStateWithLifecycle()
     val country by viewModel.country.collectAsStateWithLifecycle()
+    val favoritesOnly by viewModel.favoritesOnly.collectAsStateWithLifecycle()
     val categories by viewModel.categories.collectAsStateWithLifecycle()
     val countries by viewModel.countries.collectAsStateWithLifecycle()
     val channels = viewModel.channels.collectAsLazyPagingItems()
@@ -98,6 +102,19 @@ fun PhoneBrowseScreen(
                     modifier = Modifier.weight(1f),
                 )
             }
+            FilterChip(
+                selected = favoritesOnly,
+                onClick = { viewModel.setFavoritesOnly(!favoritesOnly) },
+                label = { Text("Favorites only") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                },
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),

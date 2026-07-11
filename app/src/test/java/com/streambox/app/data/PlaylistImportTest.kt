@@ -4,6 +4,7 @@ import androidx.paging.PagingSource
 import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelEntity
 import com.streambox.app.data.db.ChannelWithState
+import com.streambox.app.data.db.KeyUrl
 import com.streambox.app.data.m3u.M3uParser
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
@@ -35,26 +36,33 @@ private class FakeChannelDao : ChannelDao {
     override suspend fun count(): Int = insertBatches.sumOf { it.size }
 
     override fun pagingSource(
-        query: String, category: String?, country: String?, favoritesOnly: Boolean,
+        query: String, category: String?, country: String?, favoritesOnly: Boolean, hideDead: Boolean,
     ): PagingSource<Int, ChannelWithState> = throw UnsupportedOperationException()
     override fun byKey(key: String): Flow<ChannelWithState?> = throw UnsupportedOperationException()
     override suspend fun byKeyOnce(key: String): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun nextAfter(
-        name: String, key: String, query: String, category: String?, country: String?, favoritesOnly: Boolean,
+        name: String, key: String, query: String, category: String?, country: String?,
+        favoritesOnly: Boolean, hideDead: Boolean,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun prevBefore(
-        name: String, key: String, query: String, category: String?, country: String?, favoritesOnly: Boolean,
+        name: String, key: String, query: String, category: String?, country: String?,
+        favoritesOnly: Boolean, hideDead: Boolean,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun first(
-        query: String, category: String?, country: String?, favoritesOnly: Boolean,
+        query: String, category: String?, country: String?, favoritesOnly: Boolean, hideDead: Boolean,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override suspend fun last(
-        query: String, category: String?, country: String?, favoritesOnly: Boolean,
+        query: String, category: String?, country: String?, favoritesOnly: Boolean, hideDead: Boolean,
     ): ChannelWithState? = throw UnsupportedOperationException()
     override fun categories(): Flow<List<String>> = throw UnsupportedOperationException()
     override fun countries(): Flow<List<String>> = throw UnsupportedOperationException()
-    override fun channelsForCategory(category: String, limit: Int): Flow<List<ChannelWithState>> =
-        throw UnsupportedOperationException()
+    override fun channelsForCategory(
+        category: String, favoritesOnly: Boolean, hideDead: Boolean, limit: Int,
+    ): Flow<List<ChannelWithState>> = throw UnsupportedOperationException()
+    override fun channelsForCountry(
+        country: String, favoritesOnly: Boolean, hideDead: Boolean, limit: Int,
+    ): Flow<List<ChannelWithState>> = throw UnsupportedOperationException()
+    override suspend fun keyUrls(): List<KeyUrl> = throw UnsupportedOperationException()
     override fun countFlow(): Flow<Int> = throw UnsupportedOperationException()
     override suspend fun clearAll() = throw UnsupportedOperationException()
 }

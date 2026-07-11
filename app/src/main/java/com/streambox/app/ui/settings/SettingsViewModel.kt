@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.streambox.app.data.ImportProgress
 import com.streambox.app.data.PlaylistRepository
+import com.streambox.app.data.db.ChannelHealthDao
+import com.streambox.app.data.health.ChannelHealthChecker
+import com.streambox.app.data.health.ScanProgress
 import com.streambox.app.data.settings.DEFAULT_PLAYLIST_URL
 import com.streambox.app.data.settings.PlaylistPreset
 import com.streambox.app.data.settings.PlaylistPresets
@@ -21,6 +24,8 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val settings: SettingsRepository,
     private val playlistRepository: PlaylistRepository,
+    private val healthChecker: ChannelHealthChecker,
+    private val healthDao: ChannelHealthDao,
 ) : ViewModel() {
 
     val presets: List<PlaylistPreset> = PlaylistPresets.presets
@@ -33,6 +38,23 @@ class SettingsViewModel @Inject constructor(
 
     val epgEnabled: StateFlow<Boolean> = settings.epgEnabled
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), true)
+
+    val hideDead: StateFlow<Boolean> = settings.hideDead
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** Live progress of the stream health scan (app-scoped, survives leaving). */
+    val scanProgress: StateFlow<ScanProgress> = healthChecker.progress
+
+    val workingCount: StateFlow<Int> = healthDao.workingCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    fun setHideDead(value: Boolean) {
+        viewModelScope.launch { settings.setHideDead(value) }
+    }
+
+    fun startScan() = healthChecker.start()
+
+    fun stopScan() = healthChecker.stop()
 
     private val _importProgress = MutableStateFlow<ImportProgress?>(null)
     val importProgress: StateFlow<ImportProgress?> = _importProgress.asStateFlow()
@@ -61,7 +83,9 @@ class SettingsViewModel @Inject constructor(
 
     fun clearCache() {
         viewModelScope.launch {
+            healthChecker.stop()
             playlistRepository.clearCache()
+            healthDao.clearAll()
             _importProgress.value = null
         }
     }

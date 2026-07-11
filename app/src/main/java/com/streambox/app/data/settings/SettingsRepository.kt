@@ -14,6 +14,8 @@ const val DEFAULT_PLAYLIST_URL = "https://iptv-org.github.io/iptv/index.m3u"
 
 data class PlaylistPreset(val name: String, val url: String)
 
+enum class HomeGroupBy { CATEGORY, COUNTRY }
+
 object PlaylistPresets {
     val presets = listOf(
         PlaylistPreset("iptv-org: All channels", DEFAULT_PLAYLIST_URL),
@@ -32,6 +34,9 @@ class SettingsRepository @Inject constructor(
         val THEME_DARK = booleanPreferencesKey("theme_dark")
         val EPG_ENABLED = booleanPreferencesKey("epg_enabled")
         val EPG_URL = stringPreferencesKey("epg_url")
+        val HOME_GROUP_BY = stringPreferencesKey("home_group_by")
+        val HOME_FAVORITES_ONLY = booleanPreferencesKey("home_favorites_only")
+        val HIDE_DEAD = booleanPreferencesKey("hide_dead")
     }
 
     val playlistUrl: Flow<String> =
@@ -45,6 +50,29 @@ class SettingsRepository @Inject constructor(
 
     val epgUrl: Flow<String?> =
         dataStore.data.map { it[Keys.EPG_URL]?.takeIf(String::isNotBlank) }
+
+    /** How the Home screen groups its rows. */
+    val homeGroupBy: Flow<HomeGroupBy> = dataStore.data.map {
+        runCatching { HomeGroupBy.valueOf(it[Keys.HOME_GROUP_BY] ?: "") }
+            .getOrDefault(HomeGroupBy.CATEGORY)
+    }
+
+    /** When true, Home rows only contain favorited channels. */
+    val homeFavoritesOnly: Flow<Boolean> =
+        dataStore.data.map { it[Keys.HOME_FAVORITES_ONLY] ?: false }
+
+    /** When true, channels last seen as dead are hidden from the main lists. */
+    val hideDead: Flow<Boolean> =
+        dataStore.data.map { it[Keys.HIDE_DEAD] ?: false }
+
+    suspend fun setHomeGroupBy(value: HomeGroupBy) =
+        dataStore.edit { it[Keys.HOME_GROUP_BY] = value.name }
+
+    suspend fun setHomeFavoritesOnly(value: Boolean) =
+        dataStore.edit { it[Keys.HOME_FAVORITES_ONLY] = value }
+
+    suspend fun setHideDead(value: Boolean) =
+        dataStore.edit { it[Keys.HIDE_DEAD] = value }
 
     suspend fun setPlaylistUrl(url: String) =
         dataStore.edit { it[Keys.PLAYLIST_URL] = url.trim() }

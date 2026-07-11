@@ -10,12 +10,16 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -32,10 +36,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.streambox.app.data.ImportProgress
+import com.streambox.app.data.settings.HomeGroupBy
 import com.streambox.app.player.ZapContext
 import com.streambox.app.ui.home.HomeViewModel
 import com.streambox.app.ui.shared.ChannelCard
 import com.streambox.app.ui.shared.RowHeader
+import com.streambox.app.ui.shared.countryFlagEmoji
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +53,9 @@ fun PhoneHomeScreen(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val specialRows by viewModel.specialRows.collectAsStateWithLifecycle()
-    val categories by viewModel.categories.collectAsStateWithLifecycle()
+    val rowKeys by viewModel.rowKeys.collectAsStateWithLifecycle()
+    val groupBy by viewModel.groupBy.collectAsStateWithLifecycle()
+    val favoritesOnly by viewModel.favoritesOnly.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val channelCount by viewModel.channelCount.collectAsStateWithLifecycle()
     val nowTitles by viewModel.nowTitles.collectAsStateWithLifecycle()
@@ -73,7 +81,35 @@ fun PhoneHomeScreen(
         Column(modifier = Modifier.padding(padding)) {
             ImportProgressBanner(importProgress)
 
-            if (specialRows.isEmpty() && categories.isEmpty()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(horizontal = 16.dp),
+            ) {
+                FilterChip(
+                    selected = groupBy == HomeGroupBy.CATEGORY,
+                    onClick = { viewModel.setGroupBy(HomeGroupBy.CATEGORY) },
+                    label = { Text("By category") },
+                )
+                FilterChip(
+                    selected = groupBy == HomeGroupBy.COUNTRY,
+                    onClick = { viewModel.setGroupBy(HomeGroupBy.COUNTRY) },
+                    label = { Text("By country") },
+                )
+                FilterChip(
+                    selected = favoritesOnly,
+                    onClick = { viewModel.setFavoritesOnly(!favoritesOnly) },
+                    label = { Text("Favorites") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    },
+                )
+            }
+
+            if (specialRows.isEmpty() && rowKeys.isEmpty()) {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize(),
@@ -101,24 +137,32 @@ fun PhoneHomeScreen(
                             title = row.title,
                             channels = row.channels,
                             nowTitles = nowTitles,
+                            zapContext = { viewModel.zapContextFor(row.title) },
                             onPlayChannel = onPlayChannel,
                         )
                     }
-                    // Category rows load their channels only while visible, so
+                    // Group rows load their channels only while visible, so
                     // playlists with 100+ groups all get a row without keeping
                     // 100+ live queries around.
-                    items(categories, key = { it }) { category ->
-                        val channels by remember(category) { viewModel.channelsFor(category) }
-                            .collectAsStateWithLifecycle(initialValue = emptyList())
+                    items(rowKeys, key = { it }) { rowKey ->
+                        val channels by remember(rowKey, groupBy, favoritesOnly) {
+                            viewModel.channelsFor(rowKey)
+                        }.collectAsStateWithLifecycle(initialValue = emptyList())
+                        val title = if (groupBy == HomeGroupBy.COUNTRY) {
+                            "${countryFlagEmoji(rowKey)} $rowKey".trim()
+                        } else {
+                            rowKey
+                        }
                         if (channels.isNotEmpty()) {
                             PhoneChannelRow(
-                                title = category,
+                                title = title,
                                 channels = channels,
                                 nowTitles = nowTitles,
+                                zapContext = { viewModel.zapContextFor(rowKey) },
                                 onPlayChannel = onPlayChannel,
                             )
-                        } else {
-                            RowHeader(category)
+                        } else if (!favoritesOnly) {
+                            RowHeader(title)
                         }
                     }
                 }
@@ -132,6 +176,7 @@ private fun PhoneChannelRow(
     title: String,
     channels: List<com.streambox.app.data.db.ChannelWithState>,
     nowTitles: Map<String, String>,
+    zapContext: () -> ZapContext,
     onPlayChannel: (String, ZapContext) -> Unit,
 ) {
     RowHeader(title)
@@ -144,17 +189,11 @@ private fun PhoneChannelRow(
                 channel = channel,
                 subtitle = channel.channel.tvgId?.let(nowTitles::get),
                 onClick = {
-                    onPlayChannel(channel.channel.key, rowZapContext(title))
+                    onPlayChannel(channel.channel.key, zapContext())
                 },
             )
         }
     }
-}
-
-private fun rowZapContext(rowTitle: String): ZapContext = when (rowTitle) {
-    HomeViewModel.FAVORITES -> ZapContext(favoritesOnly = true)
-    HomeViewModel.CONTINUE_WATCHING -> ZapContext()
-    else -> ZapContext(category = rowTitle)
 }
 
 @Composable
