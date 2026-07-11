@@ -81,6 +81,7 @@ fun PlayerScreen(
     val currentChannelListIds by viewModel.currentChannelListIds.collectAsStateWithLifecycle()
     val panelQuery by viewModel.panelQuery.collectAsStateWithLifecycle()
     var addToListVisible by remember { mutableStateOf(false) }
+    var addToListCreateMode by remember { mutableStateOf(false) }
     var panelSearchFocused by remember { mutableStateOf(false) }
 
     val rootFocus = remember { FocusRequester() }
@@ -198,6 +199,7 @@ fun PlayerScreen(
                                 // short press opens the controls overlay.
                                 if (native.repeatCount >= 3 && !centerLongPressFired) {
                                     centerLongPressFired = true
+                                    addToListCreateMode = false
                                     addToListVisible = true
                                 }
                                 true
@@ -234,7 +236,10 @@ fun PlayerScreen(
                     overlayInteraction++
                 },
                 // Touch counterpart of long-pressing OK on the remote.
-                onLongClick = { addToListVisible = true },
+                onLongClick = {
+                    addToListCreateMode = false
+                    addToListVisible = true
+                },
             ),
     ) {
         AndroidView(
@@ -308,6 +313,7 @@ fun PlayerScreen(
                 },
                 onOpenAddToList = {
                     overlayVisible = false
+                    addToListCreateMode = false
                     addToListVisible = true
                 },
             )
@@ -342,6 +348,7 @@ fun PlayerScreen(
                 },
                 onNewList = {
                     channelListVisible = false
+                    addToListCreateMode = true
                     addToListVisible = true
                 },
                 query = panelQuery,
@@ -363,6 +370,7 @@ fun PlayerScreen(
                 onToggle = viewModel::toggleCurrentChannelInList,
                 onCreate = viewModel::createListWithCurrentChannel,
                 onDismiss = { addToListVisible = false },
+                showCreate = addToListCreateMode,
             )
         }
     }

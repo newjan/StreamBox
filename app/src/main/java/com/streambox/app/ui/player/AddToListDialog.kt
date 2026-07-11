@@ -28,9 +28,9 @@ import androidx.compose.ui.unit.dp
 import com.streambox.app.data.db.CustomCategoryWithCount
 
 /**
- * "Add to list" overlay opened from the player controls: toggle the current
- * channel in/out of each custom list, or create a new list (name only) that
- * immediately includes the channel.
+ * "Add to list" overlay: toggle the current channel in/out of Favorites and
+ * each custom list. The create-a-list form only appears when opened via
+ * "+ New list" ([showCreate]); the long-press popover stays lists-only.
  */
 @Composable
 fun AddToListDialog(
@@ -42,6 +42,7 @@ fun AddToListDialog(
     onToggle: (Long) -> Unit,
     onCreate: (String) -> Unit,
     onDismiss: () -> Unit,
+    showCreate: Boolean = false,
 ) {
     var newName by rememberSaveable { mutableStateOf("") }
 
@@ -81,7 +82,11 @@ fun AddToListDialog(
                     }
                     if (lists.isEmpty()) {
                         Text(
-                            text = "No custom lists yet — create one below.",
+                            text = if (showCreate) {
+                                "No custom lists yet — create one below."
+                            } else {
+                                "No custom lists yet — use \"+ New list\" in the channel panel."
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 8.dp),
@@ -113,23 +118,25 @@ fun AddToListDialog(
                         }
                     }
                 }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    singleLine = true,
-                    label = { Text("New list name") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Button(
-                    onClick = {
-                        onCreate(newName)
-                        newName = ""
-                    },
-                    enabled = newName.isNotBlank(),
-                    modifier = Modifier.padding(top = 8.dp),
-                ) {
-                    Text("Create & add")
+                if (showCreate) {
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    OutlinedTextField(
+                        value = newName,
+                        onValueChange = { newName = it },
+                        singleLine = true,
+                        label = { Text("New list name") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Button(
+                        onClick = {
+                            onCreate(newName)
+                            newName = ""
+                        },
+                        enabled = newName.isNotBlank(),
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) {
+                        Text("Create & add")
+                    }
                 }
             }
         },
