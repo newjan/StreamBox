@@ -192,10 +192,11 @@ fun PlayerScreen(
                             if (overlayVisible || playerState is PlayerUiState.Error) {
                                 false // let the focused button handle it
                             } else {
-                                // Long-press OK toggles favorite; short press opens overlay.
+                                // Long-press OK opens the add-to-list popover;
+                                // short press opens the controls overlay.
                                 if (native.repeatCount >= 3 && !centerLongPressFired) {
                                     centerLongPressFired = true
-                                    viewModel.toggleFavorite()
+                                    addToListVisible = true
                                 }
                                 true
                             }
@@ -343,14 +344,17 @@ fun PlayerScreen(
                     viewModel.setPanelQuery(it); panelInteraction++
                 },
                 onSearchFocusChange = { panelSearchFocused = it },
+                onActivity = { panelInteraction++ },
             )
         }
 
         if (addToListVisible) {
             AddToListDialog(
                 channelName = channel?.channel?.name ?: "",
+                isFavorite = isFavorite,
                 lists = customLists,
                 memberIds = currentChannelListIds,
+                onToggleFavorite = viewModel::toggleFavorite,
                 onToggle = viewModel::toggleCurrentChannelInList,
                 onCreate = viewModel::createListWithCurrentChannel,
                 onDismiss = { addToListVisible = false },

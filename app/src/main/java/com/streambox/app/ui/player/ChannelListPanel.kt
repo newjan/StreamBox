@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,9 +75,19 @@ fun ChannelListPanel(
     onNewList: () -> Unit,
     topFocus: FocusRequester,
     modifier: Modifier = Modifier,
+    onActivity: () -> Unit = {},
 ) {
     val selectedFocus = remember { FocusRequester() }
     val groupListState = rememberLazyListState()
+    val channelListState = rememberLazyListState()
+
+    // Scrolling (touch flings included, which produce no key events) counts
+    // as activity so the auto-hide timer never fires mid-use.
+    LaunchedEffect(groupListState, channelListState) {
+        snapshotFlow {
+            groupListState.isScrollInProgress || channelListState.isScrollInProgress
+        }.collect { scrolling -> if (scrolling) onActivity() }
+    }
 
     // Open on the selected group: scroll to it and take focus. The pinned
     // Favorites row (always composed, holds [topFocus]) is the fallback so
@@ -244,6 +255,7 @@ fun ChannelListPanel(
                     .onFocusChanged { onSearchFocusChange(it.isFocused) },
             )
             LazyColumn(
+                state = channelListState,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
             ) {

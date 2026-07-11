@@ -35,8 +35,10 @@ import com.streambox.app.data.db.CustomCategoryWithCount
 @Composable
 fun AddToListDialog(
     channelName: String,
+    isFavorite: Boolean,
     lists: List<CustomCategoryWithCount>,
     memberIds: Set<Long>,
+    onToggleFavorite: () -> Unit,
     onToggle: (Long) -> Unit,
     onCreate: (String) -> Unit,
     onDismiss: () -> Unit,
@@ -61,9 +63,25 @@ fun AddToListDialog(
                         .verticalScroll(rememberScrollState())
                         .padding(top = 8.dp),
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onToggleFavorite() }
+                            .padding(vertical = 2.dp),
+                    ) {
+                        Checkbox(
+                            checked = isFavorite,
+                            onCheckedChange = { onToggleFavorite() },
+                        )
+                        Text(
+                            text = "♥ Favorites",
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                     if (lists.isEmpty()) {
                         Text(
-                            text = "No lists yet — create one below.",
+                            text = "No custom lists yet — create one below.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(vertical = 8.dp),
