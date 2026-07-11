@@ -118,7 +118,7 @@ class SettingsRepository @Inject constructor(
         dataStore.edit { it[Keys.RETRY_WINDOW_S] = value.coerceIn(5, 60) }
 
     companion object {
-        const val DEFAULT_RETRY_WINDOW_S = 15
+        const val DEFAULT_RETRY_WINDOW_S = 10
     }
 
     suspend fun setPlaylistUrl(url: String) =

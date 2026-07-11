@@ -123,7 +123,7 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
 
     private companion object {
         /** Keep auto-retrying a failed stream this long before surfacing the error. */
-        const val DEFAULT_RETRY_WINDOW_MS = 15_000L
+        const val DEFAULT_RETRY_WINDOW_MS = 10_000L
         /** Pause between automatic re-prepare attempts. */
         const val RETRY_DELAY_MS = 3_000L
     }
