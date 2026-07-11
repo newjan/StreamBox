@@ -66,10 +66,12 @@ fun PlayerScreen(
     var bannerVisible by remember { mutableStateOf(false) }
     var centerLongPressFired by remember { mutableStateOf(false) }
     var channelListVisible by remember { mutableStateOf(false) }
+    var panelInteraction by remember { mutableIntStateOf(0) }
     val listChannels = viewModel.listChannels.collectAsLazyPagingItems()
     val panelGroups by viewModel.panelGroups.collectAsStateWithLifecycle()
     val panelGroupType by viewModel.panelGroupType.collectAsStateWithLifecycle()
     val panelSelectedGroup by viewModel.panelSelectedGroup.collectAsStateWithLifecycle()
+    val favoritesCount by viewModel.favoritesCount.collectAsStateWithLifecycle()
 
     val rootFocus = remember { FocusRequester() }
 
@@ -97,6 +99,14 @@ fun PlayerScreen(
         }
     }
 
+    // Auto-hide the channel panel 5s after the last key press or selection.
+    LaunchedEffect(channelListVisible, panelInteraction) {
+        if (channelListVisible) {
+            delay(5000)
+            channelListVisible = false
+        }
+    }
+
     // The root Box holds focus while no panel is open so it receives
     // D-pad events; focus moves into whichever panel appears.
     LaunchedEffect(overlayVisible, channelListVisible) {
@@ -120,8 +130,12 @@ fun PlayerScreen(
             .onPreviewKeyEvent { event ->
                 val native = event.nativeKeyEvent
                 val code = native.keyCode
-                // While the channel panel is open, all keys go to the panel.
-                if (channelListVisible) return@onPreviewKeyEvent false
+                // While the channel panel is open, all keys go to the panel;
+                // observing them here just resets its auto-hide timer.
+                if (channelListVisible) {
+                    if (native.action == AndroidKeyEvent.ACTION_DOWN) panelInteraction++
+                    return@onPreviewKeyEvent false
+                }
                 when (native.action) {
                     AndroidKeyEvent.ACTION_DOWN -> when (code) {
                         AndroidKeyEvent.KEYCODE_MENU -> {
@@ -269,12 +283,19 @@ fun PlayerScreen(
                 groups = panelGroups,
                 groupType = panelGroupType,
                 selectedGroup = panelSelectedGroup,
+                favoritesCount = favoritesCount,
                 channels = listChannels,
                 currentKey = channel?.channel?.key,
                 nowPlaying = nowPlaying,
-                onGroupTypeChange = viewModel::setPanelGroupType,
-                onGroupSelect = viewModel::selectPanelGroup,
-                onSelect = viewModel::playByKey,
+                onGroupTypeChange = {
+                    viewModel.setPanelGroupType(it); panelInteraction++
+                },
+                onGroupSelect = {
+                    viewModel.selectPanelGroup(it); panelInteraction++
+                },
+                onSelect = {
+                    viewModel.playByKey(it); panelInteraction++
+                },
             )
         }
     }

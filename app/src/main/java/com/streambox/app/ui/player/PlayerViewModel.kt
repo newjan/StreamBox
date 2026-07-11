@@ -100,10 +100,29 @@ class PlayerViewModel @Inject constructor(
         if (initialZap.country != null) HomeGroupBy.COUNTRY else HomeGroupBy.CATEGORY,
     )
 
-    /** Selected group in the panel; null means "All channels". */
+    /**
+     * Selected group in the panel; null means "All channels" and
+     * [FAVORITES_GROUP] is the pinned Favorites pseudo-group.
+     */
     val panelSelectedGroup = MutableStateFlow<String?>(
-        initialZap.category ?: initialZap.country,
+        when {
+            initialZap.favoritesOnly -> FAVORITES_GROUP
+            else -> initialZap.category ?: initialZap.country
+        },
     )
+
+    val favoritesCount: StateFlow<Int> = favoriteDao.count()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    init {
+        // Without an explicit group from the launch context, restore the
+        // user's last panel grouping choice.
+        if (initialZap.category == null && initialZap.country == null) {
+            viewModelScope.launch {
+                panelGroupType.value = settings.panelGroupBy.first()
+            }
+        }
+    }
 
     val panelGroups: StateFlow<List<GroupCount>> = panelGroupType
         .flatMapLatest { type ->
@@ -126,11 +145,12 @@ class PlayerViewModel @Inject constructor(
                         maxSize = 600,
                     ),
                 ) {
+                    val realGroup = group.takeIf { it != FAVORITES_GROUP }
                     channelDao.pagingSource(
                         query = "",
-                        category = group.takeIf { type == HomeGroupBy.CATEGORY },
-                        country = group.takeIf { type == HomeGroupBy.COUNTRY },
-                        favoritesOnly = initialZap.favoritesOnly,
+                        category = realGroup.takeIf { type == HomeGroupBy.CATEGORY },
+                        country = realGroup.takeIf { type == HomeGroupBy.COUNTRY },
+                        favoritesOnly = group == FAVORITES_GROUP,
                         hideDead = hideDead,
                     )
                 }.flow
@@ -140,7 +160,11 @@ class PlayerViewModel @Inject constructor(
     fun setPanelGroupType(type: HomeGroupBy) {
         if (panelGroupType.value != type) {
             panelGroupType.value = type
-            panelSelectedGroup.value = null
+            // Favorites is grouping-independent; anything else resets to All.
+            if (panelSelectedGroup.value != FAVORITES_GROUP) {
+                panelSelectedGroup.value = null
+            }
+            viewModelScope.launch { settings.setPanelGroupBy(type) }
         }
     }
 
@@ -154,10 +178,11 @@ class PlayerViewModel @Inject constructor(
      */
     fun playByKey(key: String) {
         val group = panelSelectedGroup.value
+        val realGroup = group.takeIf { it != FAVORITES_GROUP }
         zapCtx.value = ZapContext(
-            category = group.takeIf { panelGroupType.value == HomeGroupBy.CATEGORY },
-            country = group.takeIf { panelGroupType.value == HomeGroupBy.COUNTRY },
-            favoritesOnly = initialZap.favoritesOnly,
+            category = realGroup.takeIf { panelGroupType.value == HomeGroupBy.CATEGORY },
+            country = realGroup.takeIf { panelGroupType.value == HomeGroupBy.COUNTRY },
+            favoritesOnly = group == FAVORITES_GROUP,
         )
         if (key == _currentChannel.value?.channel?.key) return
         viewModelScope.launch {
@@ -236,6 +261,11 @@ class PlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         playerManager.release()
+    }
+
+    companion object {
+        /** Sentinel key for the pinned Favorites entry in the panel. */
+        const val FAVORITES_GROUP = " favorites"
     }
 }
 

@@ -35,6 +35,9 @@ interface FavoriteDao {
     )
     fun favorites(limit: Int): Flow<List<ChannelWithState>>
 
+    @Query("SELECT COUNT(*) FROM favorites")
+    fun count(): Flow<Int>
+
     @Query("DELETE FROM favorites")
     suspend fun clearAll()
 }

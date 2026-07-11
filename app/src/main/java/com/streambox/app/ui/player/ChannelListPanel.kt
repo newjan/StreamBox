@@ -53,6 +53,7 @@ fun ChannelListPanel(
     groups: List<GroupCount>,
     groupType: HomeGroupBy,
     selectedGroup: String?,
+    favoritesCount: Int,
     channels: LazyPagingItems<ChannelWithState>,
     currentKey: String?,
     nowPlaying: String?,
@@ -68,7 +69,8 @@ fun ChannelListPanel(
     LaunchedEffect(groups.isNotEmpty()) {
         if (groups.isNotEmpty()) {
             val index = selectedGroup?.let { sel -> groups.indexOfFirst { it.name == sel } } ?: -1
-            if (index >= 0) groupListState.scrollToItem(index + 1) // +1 for "All"
+            // +2 for the pinned Favorites and "All channels" rows.
+            if (index >= 0) groupListState.scrollToItem(index + 2)
             runCatching { groupFocus.requestFocus() }
         }
     }
@@ -101,6 +103,19 @@ fun ChannelListPanel(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             ) {
+                item(key = "__favorites__") {
+                    GroupRow(
+                        label = "♥ Favorites",
+                        count = favoritesCount.takeIf { it > 0 },
+                        isSelected = selectedGroup == PlayerViewModel.FAVORITES_GROUP,
+                        onClick = { onGroupSelect(PlayerViewModel.FAVORITES_GROUP) },
+                        modifier = if (selectedGroup == PlayerViewModel.FAVORITES_GROUP) {
+                            Modifier.focusRequester(groupFocus)
+                        } else {
+                            Modifier
+                        },
+                    )
+                }
                 item(key = "__all__") {
                     GroupRow(
                         label = "All channels",
@@ -142,6 +157,7 @@ fun ChannelListPanel(
             Text(
                 text = when {
                     selectedGroup == null -> "All channels"
+                    selectedGroup == PlayerViewModel.FAVORITES_GROUP -> "♥ Favorites"
                     groupType == HomeGroupBy.COUNTRY ->
                         "${countryFlagEmoji(selectedGroup)} $selectedGroup".trim()
                     else -> selectedGroup

@@ -41,6 +41,7 @@ class SettingsRepository @Inject constructor(
         val HIDE_DEAD = booleanPreferencesKey("hide_dead")
         val GROUP_VIEW_MODE = stringPreferencesKey("group_view_mode")
         val TRUST_ALL_CERTS = booleanPreferencesKey("trust_all_certs")
+        val PANEL_GROUP_BY = stringPreferencesKey("panel_group_by")
     }
 
     val playlistUrl: Flow<String> =
@@ -96,6 +97,15 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setTrustAllCerts(value: Boolean) =
         dataStore.edit { it[Keys.TRUST_ALL_CERTS] = value }
+
+    /** Last grouping (categories vs countries) used in the player panel. */
+    val panelGroupBy: Flow<HomeGroupBy> = dataStore.data.map {
+        runCatching { HomeGroupBy.valueOf(it[Keys.PANEL_GROUP_BY] ?: "") }
+            .getOrDefault(HomeGroupBy.CATEGORY)
+    }
+
+    suspend fun setPanelGroupBy(value: HomeGroupBy) =
+        dataStore.edit { it[Keys.PANEL_GROUP_BY] = value.name }
 
     suspend fun setPlaylistUrl(url: String) =
         dataStore.edit { it[Keys.PLAYLIST_URL] = url.trim() }
