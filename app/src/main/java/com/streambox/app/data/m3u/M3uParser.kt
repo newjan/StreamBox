@@ -7,7 +7,8 @@ package com.streambox.app.data.m3u
 class M3uParser {
 
     private val attrRegex = Regex("([a-zA-Z0-9-]+)=\"(.*?)\"")
-    private val countryFromTvgId = Regex("\\.([a-z]{2})$", RegexOption.IGNORE_CASE)
+    // iptv-org ids end in ".<country>" plus an optional quality tag: "2MMonde.ma@HD".
+    private val countryFromTvgId = Regex("\\.([a-z]{2})(?:@[^.]*)?$", RegexOption.IGNORE_CASE)
 
     fun parse(lines: Sequence<String>): Sequence<ParsedChannel> = sequence {
         var pendingExtinf: String? = null

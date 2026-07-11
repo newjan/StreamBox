@@ -127,6 +127,25 @@ class M3uParserTest {
     }
 
     @Test
+    fun `derives country from tvg-id with quality suffix`() {
+        // Real iptv-org ids look like "00sReplay.us@SD" / "2MMonde.ma@Plus1".
+        val out = parse(
+            """
+            #EXTINF:-1 tvg-id="00sReplay.us@SD",00s Replay
+            http://a.example/a.m3u8
+            #EXTINF:-1 tvg-id="2MMonde.ma@Plus1",2M Monde
+            http://b.example/b.m3u8
+            #EXTINF:-1 tvg-id="Some.Dotted.Name.fr@HD",Dotted
+            http://c.example/c.m3u8
+            """.trimIndent()
+        )
+        assertEquals(3, out.size)
+        assertEquals("US", out[0].country)
+        assertEquals("MA", out[1].country)
+        assertEquals("FR", out[2].country)
+    }
+
+    @Test
     fun `blank tvg id yields null country`() {
         val out = parse(
             """
