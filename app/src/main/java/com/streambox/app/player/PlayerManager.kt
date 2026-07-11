@@ -8,9 +8,16 @@ import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 sealed interface PlayerUiState {
@@ -33,6 +40,10 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
 
     private var currentUrl: String? = null
 
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var retryJob: Job? = null
+    private var firstErrorAt: Long? = null
+
     val player: ExoPlayer = run {
         val dataSourceFactory = OkHttpDataSource.Factory(okHttpClient)
         val renderersFactory = DefaultRenderersFactory(context)
@@ -46,15 +57,37 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
         override fun onPlaybackStateChanged(playbackState: Int) {
             when (playbackState) {
                 Player.STATE_BUFFERING -> _state.value = PlayerUiState.Buffering
-                Player.STATE_READY -> _state.value = PlayerUiState.Playing
+                Player.STATE_READY -> {
+                    // Stream recovered (or started) — a future error opens a
+                    // fresh retry window.
+                    firstErrorAt = null
+                    _state.value = PlayerUiState.Playing
+                }
                 else -> Unit
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            _state.value = PlayerUiState.Error(
-                "Stream unavailable — it may be offline or geo-blocked"
-            )
+            // Flaky IPTV servers often come back within seconds: keep
+            // silently re-preparing for RETRY_WINDOW_MS before giving up.
+            val now = System.currentTimeMillis()
+            val windowStart = firstErrorAt ?: now.also { firstErrorAt = it }
+            if (now - windowStart < RETRY_WINDOW_MS && currentUrl != null) {
+                _state.value = PlayerUiState.Buffering
+                retryJob?.cancel()
+                retryJob = scope.launch {
+                    delay(RETRY_DELAY_MS)
+                    currentUrl?.let { url ->
+                        player.setMediaItem(MediaItem.fromUri(url))
+                        player.prepare()
+                        player.playWhenReady = true
+                    }
+                }
+            } else {
+                _state.value = PlayerUiState.Error(
+                    "Stream unavailable — it may be offline or geo-blocked"
+                )
+            }
         }
     }
 
@@ -63,6 +96,8 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
     }
 
     fun play(url: String) {
+        retryJob?.cancel()
+        firstErrorAt = null
         currentUrl = url
         _state.value = PlayerUiState.Buffering
         player.setMediaItem(MediaItem.fromUri(url))
@@ -70,12 +105,22 @@ class PlayerManager(context: Context, okHttpClient: OkHttpClient) {
         player.playWhenReady = true
     }
 
+    /** Manual retry from the error UI opens a fresh 30s retry window. */
     fun retry() {
         currentUrl?.let(::play)
     }
 
     fun release() {
+        retryJob?.cancel()
+        scope.cancel()
         player.removeListener(listener)
         player.release()
+    }
+
+    private companion object {
+        /** Keep auto-retrying a failed stream this long before surfacing the error. */
+        const val RETRY_WINDOW_MS = 30_000L
+        /** Pause between automatic re-prepare attempts. */
+        const val RETRY_DELAY_MS = 3_000L
     }
 }
