@@ -10,6 +10,7 @@ import com.streambox.app.data.db.FavoriteDao
 import com.streambox.app.data.db.ProgrammeDao
 import com.streambox.app.data.db.RecentDao
 import com.streambox.app.data.db.StreamBoxDatabase
+import com.streambox.app.data.epg.XmltvParser
 import com.streambox.app.data.m3u.M3uParser
 import dagger.Module
 import dagger.Provides
@@ -69,4 +70,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideM3uParser(): M3uParser = M3uParser()
+
+    @Provides
+    @Singleton
+    fun provideXmltvParser(): XmltvParser = XmltvParser()
 }

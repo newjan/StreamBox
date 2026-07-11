@@ -48,6 +48,7 @@ fun PhoneHomeScreen(
     val rows by viewModel.rows.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val channelCount by viewModel.channelCount.collectAsStateWithLifecycle()
+    val nowTitles by viewModel.nowTitles.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -102,6 +103,7 @@ fun PhoneHomeScreen(
                             items(row.channels, key = { it.channel.key }) { channel ->
                                 ChannelCard(
                                     channel = channel,
+                                    subtitle = channel.channel.tvgId?.let(nowTitles::get),
                                     onClick = {
                                         onPlayChannel(
                                             channel.channel.key,

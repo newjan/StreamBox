@@ -49,6 +49,7 @@ fun TvHomeScreen(
     val rows by viewModel.rows.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val channelCount by viewModel.channelCount.collectAsStateWithLifecycle()
+    val nowTitles by viewModel.nowTitles.collectAsStateWithLifecycle()
 
     val firstNavFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) { firstNavFocus.requestFocus() }
@@ -108,7 +109,7 @@ fun TvHomeScreen(
                 modifier = Modifier.fillMaxSize(),
             ) {
                 items(rows, key = { it.title }) { row ->
-                    TvHomeRow(row = row, onPlayChannel = onPlayChannel)
+                    TvHomeRow(row = row, nowTitles = nowTitles, onPlayChannel = onPlayChannel)
                 }
             }
         }
@@ -119,6 +120,7 @@ fun TvHomeScreen(
 @Composable
 private fun TvHomeRow(
     row: HomeRow,
+    nowTitles: Map<String, String>,
     onPlayChannel: (String, ZapContext) -> Unit,
 ) {
     Column {
@@ -135,6 +137,7 @@ private fun TvHomeRow(
             items(row.channels, key = { it.channel.key }) { channel ->
                 TvChannelCard(
                     channel = channel,
+                    subtitle = channel.channel.tvgId?.let(nowTitles::get),
                     onClick = {
                         onPlayChannel(channel.channel.key, rowZapContext(row.title))
                     },

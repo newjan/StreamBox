@@ -52,6 +52,7 @@ datastore-preferences = { group = "androidx.datastore", name = "datastore-prefer
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "kotlinxCoroutines" }
+kxml2 = { group = "net.sf.kxml", name = "kxml2", version = "2.3.0" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

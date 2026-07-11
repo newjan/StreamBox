@@ -7,7 +7,9 @@ import com.streambox.app.data.PlaylistRepository
 import com.streambox.app.data.db.ChannelDao
 import com.streambox.app.data.db.ChannelWithState
 import com.streambox.app.data.db.FavoriteDao
+import com.streambox.app.data.db.ProgrammeDao
 import com.streambox.app.data.db.RecentDao
+import com.streambox.app.data.epg.EpgRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -27,10 +30,18 @@ data class HomeRow(val title: String, val channels: List<ChannelWithState>)
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
+    private val epgRepository: EpgRepository,
     channelDao: ChannelDao,
     favoriteDao: FavoriteDao,
     recentDao: RecentDao,
+    programmeDao: ProgrammeDao,
 ) : ViewModel() {
+
+    /** tvg-id → currently airing title, for card subtitles. Empty without EPG. */
+    val nowTitles: StateFlow<Map<String, String>> =
+        programmeDao.nowTitles(System.currentTimeMillis())
+            .map { titles -> titles.associate { it.tvgId to it.title } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     private val _importProgress = MutableStateFlow<ImportProgress?>(null)
     val importProgress: StateFlow<ImportProgress?> = _importProgress.asStateFlow()
@@ -80,6 +91,10 @@ class HomeViewModel @Inject constructor(
             if (_importProgress.value is ImportProgress.Running) return@launch
             playlistRepository.refresh().collect { progress ->
                 _importProgress.value = progress
+                if (progress is ImportProgress.Done) {
+                    // Optional now-playing guide; failures are silent by design.
+                    epgRepository.refreshIfEnabled()
+                }
             }
         }
     }
