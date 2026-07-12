@@ -4,15 +4,35 @@ A modern IPTV player for Android phones **and** Android TV, built with Kotlin,
 Jetpack Compose, Compose for TV, and Media3 ExoPlayer. One universal APK runs
 on both form factors: touch UI on phones, a D-pad-driven 10-foot UI on TV.
 
-- Default playlist: [iptv-org](https://github.com/iptv-org/iptv)
-  `https://iptv-org.github.io/iptv/index.m3u` (~12,000+ channels), with
-  presets for the category/country/language variants and support for any
-  custom M3U URL.
-- Channels are streamed line-by-line into a Room cache — cached channels show
-  instantly on launch while the playlist refreshes in the background.
-- HLS (`.m3u8`) and raw MPEG-TS/HTTP streams, favorites, recents ("Continue
-  Watching"), instant local search, category/country filters, channel zapping
-  with D-pad up/down, aspect-ratio toggle, and optional XMLTV "now playing".
+## Features
+
+- **~13,000 live channels** from the default [iptv-org](https://github.com/iptv-org/iptv)
+  playlist (`https://iptv-org.github.io/iptv/index.m3u`), with presets for the
+  category/country/language variants and support for any custom M3U URL.
+- **In-player channel guide** — press MENU (or D-pad ←) while watching: a side
+  panel slides over the live video with categories/countries, your lists, and
+  a search field, so you can switch channels without leaving playback.
+- **Custom channel lists** — long-press OK on the remote (or long-press the
+  screen on phones) to file the current channel into your own lists; lists
+  appear as Home rows and in the in-player guide, and survive playlist
+  refreshes.
+- **Auto-recovery** — a failed stream silently retries (configurable 5–60s,
+  default 10s, Settings → Playback) before showing an error.
+- **Channel health** — "Scan channels" probes the playlist in the background
+  and a "hide non-working channels" toggle filters dead streams everywhere;
+  playing any channel also updates its status automatically.
+- **Instant startup** — channels stream line-by-line into a Room cache; cached
+  channels show immediately while the playlist refreshes in the background.
+- Browse by category/country with a grid/list **Groups** browser, instant
+  local search, favorites, recents ("Continue Watching").
+- **Full D-pad navigation** on TV, including channel zapping with up/down
+  while watching; visible focus with scale + accent border on every screen.
+- HLS (`.m3u8`) and raw MPEG-TS/HTTP streams; aspect-ratio toggle
+  (fit/fill/zoom); optional XMLTV "now playing" programme info.
+- Dark mode by default (light theme available), Material 3 design.
+- Runs on Android 6.0+ — bundles current CA root certificates so HTTPS works
+  on old TV boxes with outdated system certificate stores (plus an opt-in
+  "trust all certificates" escape hatch for hopeless cases).
 
 ## Requirements
 
